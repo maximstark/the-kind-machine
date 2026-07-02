@@ -136,6 +136,16 @@ export class Ledger {
     bus.emit('world:shift', { detailId, from: prev, to: d.state })
   }
 
+  // On re-entry the scene may redraw with the machine's version. From then
+  // on, that version is what stands.
+  redraw(detailId: string, state: string) {
+    const d = this.details.get(detailId)
+    if (!d || d.state === state) return
+    const prev = d.state
+    d.state = state
+    bus.emit('world:redraw', { detailId, from: prev, to: state })
+  }
+
   recordSeen(detailId: string, ms: number) {
     const d = this.details.get(detailId)
     if (!d) return

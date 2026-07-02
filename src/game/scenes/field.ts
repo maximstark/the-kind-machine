@@ -90,12 +90,12 @@ export function buildField(): GameScene {
     {
       id: 'field-torch',
       question: 'The torch by the path. Was it burning?', // DRAFT
-      options: ['It was burning', 'It was cold'],
-      initial: 'It was burning',
-      mutated: 'It was cold',
+      options: ['Burning', 'Cold'],
+      initial: 'Burning',
+      mutated: 'Cold',
       describe: {
-        'It was burning': 'A torch, dropped mid-stride. Still burning.', // DRAFT
-        'It was cold': 'A torch, dropped mid-stride. Long cold.', // DRAFT
+        Burning: 'A torch, dropped mid-stride. Still burning.', // DRAFT
+        Cold: 'A torch, dropped mid-stride. Long cold.', // DRAFT
       },
     },
     {
@@ -142,8 +142,8 @@ export function buildField(): GameScene {
       if (id === 'field-moons') moon2.visible = state === 'Two'
       if (id === 'field-stones') stoneRing[7].visible = state === 'Eight'
       if (id === 'field-torch') {
-        torchLit.visible = state === 'It was burning'
-        torchCold.visible = state !== 'It was burning'
+        torchLit.visible = state === 'Burning'
+        torchCold.visible = state !== 'Burning'
       }
       if (id === 'field-prints') {
         printsToward.visible = state === 'Toward the chapel'

@@ -29,6 +29,7 @@ export interface GameScene {
   waymark: THREE.Vector3 // where the machine waits; tap to end the walk
   entryLine: string
   quiz: { lie: boolean; mutation: boolean; quizCount?: number }
+  weather?: number // ambient floor for the render pipeline, rises scene to scene
   applyDetailState(id: string, state: string): void
   update?(dt: number, t: number): void
   // Scene-specific hook run when the player re-enters after the quiz.

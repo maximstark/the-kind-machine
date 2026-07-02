@@ -1,6 +1,9 @@
 import * as THREE from 'three'
 import { Game } from './game/game'
 import { ledger } from './game/ledger'
+import { trust } from './game/trust'
+import { quizController } from './game/quiz'
+import { voice } from './game/machine'
 import { atmosphere } from './core/atmosphere'
 import { buildField } from './game/scenes/field'
 import { bus } from './core/bus'
@@ -9,8 +12,8 @@ const canvas = document.getElementById('game') as HTMLCanvasElement
 const game = new Game(canvas)
 
 game.loadScene(buildField())
-game.onWaymark = () => {
-  game.say('Soon. Look a little longer first.') // DRAFT — quiz wiring lands in M3
+game.onAdvance = () => {
+  // Scene chain lands in M5; for now the field is the whole world.
 }
 
 let last = performance.now()
@@ -34,6 +37,9 @@ document.addEventListener('visibilitychange', () => {
   ledger,
   atmosphere,
   bus,
+  trust,
+  quiz: quizController,
+  voice,
   tapClient(x: number, y: number) {
     ;(game as any).handleTap(x, y)
   },

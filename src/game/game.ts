@@ -9,6 +9,9 @@ import { CSS } from '../core/palette'
 import { ledger } from './ledger'
 import { Player } from './player'
 import { Grid } from './grid'
+import { voice } from './machine'
+import { quizController } from './quiz'
+import { SCRIPT, pick } from './script'
 import type { GameScene } from './scenes/types'
 
 export type GameState =
@@ -35,13 +38,14 @@ export class Game {
   private raycaster = new THREE.Raycaster()
   private camTarget = new THREE.Vector3()
   private caption: { text: string; until: number } | null = null
-  private machineLine: { text: string; until: number } | null = null
   private queuedExamine: string | null = null
   private mutationApplied = false
+  private quizDone = false
   private stateT = 0 // seconds in current state
   private now = 0
   private sceneEnterT = 0
-  onWaymark: (() => void) | null = null
+  // Called when the player leaves through the waymark after the quiz.
+  onAdvance: (() => void) | null = null
 
   constructor(canvas: HTMLCanvasElement) {
     this.pipeline = new Pipeline(canvas)
@@ -65,16 +69,14 @@ export class Game {
     this.camTarget.copy(this.player.object.position)
     this.rig.frameWidth(this.camTarget.clone().setY(0.5), scene.viewWidth)
     this.mutationApplied = false
+    this.quizDone = false
+    atmosphere.baseline = scene.weather ?? 0
     this.sceneEnterT = this.now
   }
 
   setState(s: GameState) {
     this.state = s
     this.stateT = 0
-  }
-
-  say(text: string, seconds = 6) {
-    this.machineLine = { text, until: this.now + seconds }
   }
 
   showCaption(text: string) {
@@ -121,6 +123,10 @@ export class Game {
       this.setState('draw-in')
       return
     }
+    if (this.state === 'quiz') {
+      quizController.handleTap(this.overlay, clientX, clientY)
+      return
+    }
     if (this.state !== 'explore') {
       bus.emit('game:tap', { clientX, clientY })
       return
@@ -131,7 +137,7 @@ export class Game {
     // 1. The waymark.
     const wm = this.worldToRt(this.scene.waymark)
     if (wm.visible && dist(rt, wm) < 22) {
-      this.onWaymark?.()
+      this.onWaymarkTap()
       return
     }
 
@@ -225,6 +231,31 @@ export class Game {
     this.scene.applyDetailState(a.mutation, ledger.stateOf(a.mutation))
   }
 
+  // --- quiz flow ---
+
+  private onWaymarkTap() {
+    if (this.quizDone) {
+      voice.say(pick(SCRIPT.waymarkDone), { onDone: () => this.onAdvance?.() })
+      return
+    }
+    this.player.stop()
+    voice.clear()
+    this.setState('dissolve-out')
+  }
+
+  private applyReentry() {
+    const a = ledger.assignments.get(this.scene.id)
+    if (a?.lie && a.lieClaim) {
+      const rec = ledger.quiz.find((q) => q.sceneId === this.scene.id && q.detailId === a.lie)
+      if (rec?.agreedWithMachine) {
+        // The scene redraws with the account you shared.
+        ledger.redraw(a.lie, a.lieClaim)
+        this.scene.applyDetailState(a.lie, a.lieClaim)
+      }
+    }
+    this.scene.onReentry?.()
+  }
+
   get mutationPending(): boolean {
     const a = ledger.assignments.get(this.scene.id)
     return !!a?.mutation && !this.mutationApplied
@@ -239,12 +270,38 @@ export class Game {
     this.pipeline.disturb = atmosphere.amplitude
     this.scene?.update?.(dt, t)
 
+    voice.update(dt)
+    quizController.update(dt)
+
     if (this.state === 'draw-in') {
       this.pipeline.dissolve = Math.max(0, 1 - this.stateT / 2.2)
       if (this.stateT >= 2.4) {
         this.setState('explore')
-        this.say(this.scene.entryLine, 9)
+        voice.say(this.scene.entryLine)
+        voice.say(pick(SCRIPT.waymarkFirst))
         bus.emit('scene:entered', this.scene.id)
+      }
+    }
+
+    if (this.state === 'dissolve-out') {
+      this.pipeline.dissolve = Math.min(1, this.stateT / 1.6)
+      if (this.stateT >= 1.9) {
+        // If the world still owes a change, it happens in the dark.
+        if (this.mutationPending) this.applyShift()
+        this.setState('quiz')
+        quizController.start(this.scene, () => {
+          this.applyReentry()
+          this.quizDone = true
+          this.setState('dissolve-in')
+        })
+      }
+    }
+
+    if (this.state === 'dissolve-in') {
+      this.pipeline.dissolve = Math.max(0, 1 - this.stateT / 1.8)
+      if (this.stateT >= 2.0) {
+        this.setState('explore')
+        bus.emit('scene:reentered', this.scene.id)
       }
     }
 
@@ -328,10 +385,12 @@ export class Game {
       }
     }
 
-    if (this.machineLine) {
-      if (t > this.machineLine.until) this.machineLine = null
-      else o.machineText(this.machineLine.text)
+    if (this.state === 'quiz') {
+      quizController.draw(o)
     }
+
+    voice.draw(o)
+
     if (this.caption) {
       if (t > this.caption.until) this.caption = null
       else o.caption(this.caption.text)
