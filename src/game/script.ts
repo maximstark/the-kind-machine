@@ -80,6 +80,8 @@ export const SCRIPT = {
   fallbackFlourish: [
     'You walk the way they walked. I notice these things.', // DRAFT
     'You are gentler with the details than most were.', // DRAFT
+    'You look before you touch. Not everyone did.', // DRAFT
+    'Take your time. The day is not going anywhere. It already went.', // DRAFT
   ],
 } as const
 

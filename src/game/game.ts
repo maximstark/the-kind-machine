@@ -12,6 +12,8 @@ import { Grid } from './grid'
 import { voice } from './machine'
 import { quizController } from './quiz'
 import { SCRIPT, pick } from './script'
+import { flourish } from './flourish'
+import { sound } from '../audio/sound'
 import type { GameScene, SceneContext } from './scenes/types'
 
 export type GameState =
@@ -49,6 +51,8 @@ export class Game {
   private choicePrompt: { options: string[]; cb: (picked: string) => void } | null = null
   private outroT = 0
   private finished = false
+  // Flourish slots waiting to speak, oldest first.
+  private slotQueue: { id: string; notBefore: number; fallback: boolean }[] = []
   // Called when the player leaves through the waymark after the quiz.
   onAdvance: (() => void) | null = null
 
@@ -77,6 +81,14 @@ export class Game {
     this.quizDone = false
     atmosphere.baseline = scene.weather ?? 0
     this.sceneEnterT = this.now
+    // The request fires as the walk phase begins; the line is ready
+    // before its slot arrives.
+    if (scene.details.length) {
+      flourish.prefetch(`entry:${scene.id}`, scene.id)
+      this.slotQueue = [{ id: `entry:${scene.id}`, notBefore: this.now + 14, fallback: true }]
+    } else {
+      this.slotQueue = []
+    }
   }
 
   setState(s: GameState) {
@@ -275,7 +287,23 @@ export class Game {
     }
     this.player.stop()
     voice.clear()
+    flourish.prefetch(`post:${this.scene.id}`, this.scene.id)
+    bus.emit('dissolve:out')
     this.setState('dissolve-out')
+  }
+
+  // Speak a queued flourish when its slot arrives and the voice is free.
+  private speakSlots() {
+    const s = this.slotQueue[0]
+    if (!s || this.now < s.notBefore || voice.busy) return
+    if (flourish.settled(s.id)) {
+      this.slotQueue.shift()
+      const line = flourish.deliver(s.id) ?? (s.fallback ? pick(SCRIPT.fallbackFlourish) : null)
+      if (line) voice.say(line)
+    } else if (this.now > s.notBefore + 6) {
+      this.slotQueue.shift()
+      if (s.fallback) voice.say(pick(SCRIPT.fallbackFlourish))
+    }
   }
 
   // What scenes may ask of the game.
@@ -295,6 +323,7 @@ export class Game {
     this.player.stop()
     voice.clear()
     this.travel = builder
+    bus.emit('dissolve:out')
     this.setState('dissolve-out')
   }
 
@@ -337,6 +366,7 @@ export class Game {
     this.now = t
     this.stateT += dt
     atmosphere.update(dt, t)
+    sound.update()
     this.pipeline.disturb = atmosphere.amplitude
     // At higher amplitudes the interface is weather too.
     this.pipeline.uiDisturb = Math.max(0, atmosphere.amplitude - 0.35) * 0.8
@@ -370,6 +400,7 @@ export class Game {
           quizController.start(this.scene, () => {
             this.applyReentry()
             this.quizDone = true
+            bus.emit('dissolve:in')
             this.setState('dissolve-in')
           })
         }
@@ -395,6 +426,7 @@ export class Game {
       this.pipeline.dissolve = Math.max(0, 1 - this.stateT / 1.8)
       if (this.stateT >= 2.0) {
         this.setState('explore')
+        this.slotQueue.push({ id: `post:${this.scene.id}`, notBefore: this.now + 4, fallback: false })
         bus.emit('scene:reentered', this.scene.id)
       }
     }
@@ -402,6 +434,7 @@ export class Game {
     if (this.state === 'explore') {
       this.player.update(dt)
       this.logSeen(dt)
+      this.speakSlots()
       ledger.sceneTimes.set(
         this.scene.id,
         (ledger.sceneTimes.get(this.scene.id) ?? 0) + dt * 1000

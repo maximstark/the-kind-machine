@@ -88,6 +88,7 @@ export class QuizController {
   private answer(option: string) {
     this.phase = 'respond'
     this.selected = option
+    bus.emit('quiz:card-picked')
     const detailId = this.detailId
     const role = ledger.roleOf(this.scene.id, detailId)
     const claim = this.machineClaim(detailId)

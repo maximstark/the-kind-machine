@@ -33,6 +33,10 @@ export class MachineVoice {
     return this.current !== null || this.queue.length > 0
   }
 
+  get currentText(): string | null {
+    return this.current?.text ?? null
+  }
+
   clear() {
     this.queue = []
     this.current = null
