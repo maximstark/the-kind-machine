@@ -92,11 +92,19 @@ export function brokenColumn(h = 2.2, r = 0.45): THREE.Mesh {
   return m
 }
 
+// The iso camera never rotates, so sky discs get a fixed billboard rotation.
+export const CAM_DIR = new THREE.Vector3(
+  Math.cos(Math.PI / 6) * Math.cos(Math.PI / 4),
+  Math.sin(Math.PI / 6),
+  Math.cos(Math.PI / 6) * Math.sin(Math.PI / 4)
+)
+
 export function moon(r = 0.9, colorHex = PALETTE_HEX.bone): THREE.Mesh {
   const geo = new THREE.CircleGeometry(r, 24)
   const mat = new THREE.MeshBasicMaterial({ color: colorHex, fog: false })
   const m = new THREE.Mesh(geo, mat)
   m.name = 'moon'
+  m.lookAt(CAM_DIR)
   return m
 }
 
