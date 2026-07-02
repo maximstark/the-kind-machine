@@ -18,7 +18,7 @@ export const MAT = {
     flatShading: true,
   }),
   charcoal: new THREE.MeshLambertMaterial({ color: 0x211e24, flatShading: true }),
-  robe: new THREE.MeshLambertMaterial({ color: 0x2c2830, flatShading: true }),
+  robe: new THREE.MeshLambertMaterial({ color: 0x413d4a, flatShading: true }),
 }
 
 let _seed = 7

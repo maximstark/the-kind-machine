@@ -74,7 +74,7 @@ export class Game {
     this.scene = scene
     ledger.registerScene(scene.id, scene.details)
     ledger.assign(scene.id, scene.quiz)
-    scene.three.add(this.player.object)
+    scene.three.add(this.player.object, this.player.puffs)
     this.player.setGrid(scene.grid, scene.spawnCell)
     this.camTarget.copy(this.player.object.position)
     this.rig.frameWidth(this.camTarget.clone().setY(0.5), scene.viewWidth)
@@ -291,7 +291,8 @@ export class Game {
     const next = () => {
       if (this.state !== 'cold-open') return
       if (i < lines.length) {
-        voice.say(lines[i++], { onDone: next, yFrac: 0.46 })
+        const line = lines[i++]
+        voice.say(line, { onDone: next, yFrac: 0.46, hold: 0.9 + line.length * 0.012 })
       } else {
         this.setState('draw-in')
       }
@@ -333,6 +334,33 @@ export class Game {
     flourish.prefetch(`post:${this.scene.id}`, this.scene.id)
     bus.emit('dissolve:out')
     this.setState('dissolve-out')
+  }
+
+  // The figure glances at whatever is worth glancing at.
+  private updateAttention() {
+    const pos = this.player.object.position
+    let best: THREE.Vector3 | null = null
+    let bestD = 5.5
+    for (const [, a] of this.scene.anchors) {
+      if (!a.examinable || a.sky) continue
+      const d = pos.distanceTo(a.object.position)
+      if (d < bestD) {
+        bestD = d
+        best = a.object.position
+      }
+    }
+    for (const pe of this.scene.plainExamines) {
+      const d = pos.distanceTo(pe.object.position)
+      if (d < bestD) {
+        bestD = d
+        best = pe.object.position
+      }
+    }
+    if (!best && this.waymarkReady()) {
+      const d = pos.distanceTo(this.scene.waymark)
+      if (d < 9) best = this.scene.waymark
+    }
+    this.player.character.lookToward(best)
   }
 
   // Speak a queued flourish when its slot arrives and the voice is free.
@@ -452,6 +480,7 @@ export class Game {
 
     if (this.state === 'ending') {
       // The hall breathes while the account is read.
+      this.player.update(dt, t)
       this.camTarget.lerp(this.scene.waymark.clone().setY(0.5), 1 - Math.exp(-dt * 0.8))
       this.rig.moveCenter(this.camTarget.clone())
     }
@@ -482,7 +511,8 @@ export class Game {
     }
 
     if (this.state === 'explore') {
-      this.player.update(dt)
+      this.player.update(dt, t)
+      this.updateAttention()
       this.logSeen(dt)
       this.speakSlots()
       // Announce the mark the moment the gate opens.

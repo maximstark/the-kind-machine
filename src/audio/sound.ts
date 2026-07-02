@@ -119,6 +119,23 @@ class Sound {
     src.start()
   }
 
+  // Footfall on ash: a soft, low, brief thud.
+  thud() {
+    const ctx = this.ctx
+    if (!ctx || !this.master) return
+    const o = ctx.createOscillator()
+    o.type = 'sine'
+    o.frequency.setValueAtTime(95 + Math.random() * 15, ctx.currentTime)
+    o.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.09)
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.05, ctx.currentTime)
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.1)
+    o.connect(g)
+    g.connect(this.master)
+    o.start()
+    o.stop(ctx.currentTime + 0.12)
+  }
+
   chime(freq = 660, dur = 0.5, level = 0.12) {
     const ctx = this.ctx
     if (!ctx || !this.master) return
@@ -172,6 +189,7 @@ export const sound = new Sound()
 
 bus.on('game:begin', () => sound.unlock())
 bus.on('machine:tick', () => sound.tick())
+bus.on('char:step', () => sound.thud())
 bus.on('quiz:card-picked', () => sound.chime(720, 0.35, 0.08))
 bus.on('dissolve:out', () => sound.scratch(1.5))
 bus.on('dissolve:in', () => sound.scratch(1.8))
