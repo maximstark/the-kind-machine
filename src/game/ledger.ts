@@ -134,6 +134,7 @@ export class Ledger {
     const prev = d.state
     d.state = d.spec.mutated
     bus.emit('world:shift', { detailId, from: prev, to: d.state })
+    bus.emit('beat', 0.5)
   }
 
   // On re-entry the scene may redraw with the machine's version. From then
@@ -144,6 +145,7 @@ export class Ledger {
     const prev = d.state
     d.state = state
     bus.emit('world:redraw', { detailId, from: prev, to: state })
+    bus.emit('beat', 0.45)
   }
 
   recordSeen(detailId: string, ms: number) {

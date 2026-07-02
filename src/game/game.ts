@@ -268,6 +268,8 @@ export class Game {
     this.stateT += dt
     atmosphere.update(dt, t)
     this.pipeline.disturb = atmosphere.amplitude
+    // At higher amplitudes the interface is weather too.
+    this.pipeline.uiDisturb = Math.max(0, atmosphere.amplitude - 0.35) * 0.8
     this.scene?.update?.(dt, t)
 
     voice.update(dt)

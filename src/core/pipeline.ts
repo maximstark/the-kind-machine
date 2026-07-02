@@ -38,19 +38,22 @@ float vnoise(vec2 p) {
   return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
-vec2 driftUv(vec2 uv, float amount) {
+// Row displacement field, and a luminance wobble so drag reads even
+// across flat fills. Returns (du, brightness delta).
+vec3 driftUv(vec2 uv, float amount) {
   vec2 px = uv * uRes;
   float seed = floor(uTime * 1.7);
   float blendT = fract(uTime * 1.7);
-  float rowC = floor(px.y / 7.0);
+  float rowC = floor(px.y / 5.0);
   float rowF = floor(px.y / 2.0);
   float nC0 = hash21(vec2(rowC, seed));
   float nC1 = hash21(vec2(rowC, seed + 1.0));
   float nC = mix(nC0, nC1, blendT);
   float nF = hash21(vec2(rowF, seed * 3.7 + 11.0));
-  float gate = smoothstep(0.55, 0.95, nC);
-  float dxPix = (nC - 0.5) * 2.0 * gate * 30.0 * amount + (nF - 0.5) * 4.0 * amount;
-  return vec2(dxPix / uRes.x, 0.0);
+  float gate = smoothstep(0.5, 0.9, nC);
+  float dxPix = (nC - 0.5) * 2.0 * gate * 36.0 * amount + (nF - 0.5) * 4.0 * amount;
+  float lum = (nC - 0.5) * gate * 0.34 * amount;
+  return vec3(dxPix / uRes.x, 0.0, lum);
 }
 
 vec3 toDisplay(vec3 linear) {
@@ -62,12 +65,13 @@ void main() {
   vec2 px = uv * uRes;
 
   vec3 col;
-  vec2 duv = driftUv(uv, uDisturb);
+  vec3 drift = driftUv(uv, uDisturb);
+  vec2 duv = drift.xy;
   if (uDisturb > 0.002) {
     vec3 s0 = texture2D(uScene, uv + duv).rgb;
     vec3 s1 = texture2D(uScene, uv + duv * 1.7).rgb;
     vec3 s2 = texture2D(uScene, uv + duv * 0.4).rgb;
-    col = toDisplay(vec3(s1.r, s0.g, s2.b));
+    col = toDisplay(vec3(s1.r, s0.g, s2.b)) * (1.0 + drift.z);
   } else {
     col = toDisplay(texture2D(uScene, uv).rgb);
   }
@@ -90,7 +94,7 @@ void main() {
 
   vec2 uiUv = uv;
   if (uUIDisturb > 0.002) {
-    uiUv += driftUv(uv + 0.31, uUIDisturb);
+    uiUv += driftUv(uv + 0.31, uUIDisturb).xy;
   }
   vec4 ui = texture2D(uUI, uiUv);
 

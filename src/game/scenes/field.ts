@@ -138,6 +138,7 @@ export function buildField(): GameScene {
     waymark: new THREE.Vector3(8, 0.4, -5),
     entryLine: 'You are awake. Good. This is the field, as well as I remember it. Walk. Look. I will ask you to help me with the details.', // DRAFT
     quiz: { lie: false, mutation: false, quizCount: 3 },
+    weather: 0.015,
     applyDetailState(id, state) {
       if (id === 'field-moons') moon2.visible = state === 'Two'
       if (id === 'field-stones') stoneRing[7].visible = state === 'Eight'

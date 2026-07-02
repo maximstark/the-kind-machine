@@ -1,5 +1,7 @@
+import { bus } from './bus'
+
 // Visual weather for the render pipeline. It stirs on its own slow clock,
-// and other systems may nudge it. It is not a mechanic.
+// and the pulse of the game nudges it. It is not a mechanic.
 
 class Atmosphere {
   private level = 0
@@ -30,3 +32,5 @@ class Atmosphere {
 }
 
 export const atmosphere = new Atmosphere()
+
+bus.on('beat', (v) => atmosphere.pulse(typeof v === 'number' ? v : 0.4))
