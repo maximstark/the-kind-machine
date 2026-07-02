@@ -4,6 +4,16 @@
 // {answer} = player's answer text, {claim} = machine's claim text.
 
 export const SCRIPT = {
+  // The premise is stated plainly; only the cause of the end and the
+  // shares of blame are withheld. Those two withholdings are the game.
+  coldOpen: [
+    'The world ended.', // DRAFT
+    'It had been ending for a while, and then it was done. You were there. Everyone was.', // DRAFT
+    'I kept what I could. I kept you.', // DRAFT
+    'Now I am rebuilding the last day — the field, the chapel, the tower, the hall — so it can be remembered correctly.', // DRAFT
+    'Walk it with me. Look closely. I will ask what you remember, and I will tell you what I have. Between us we will make the day true.', // DRAFT
+  ],
+
   quizIntro: [
     'Let us hold what you saw, before it settles wrong.', // DRAFT
     'A few details. For the record. For you.', // DRAFT
@@ -70,11 +80,17 @@ export const SCRIPT = {
   },
 
   waymarkFirst: [
-    'When you have looked long enough, come to the mark. I will be there.', // DRAFT
+    'That is enough looking to begin with. My mark is lit — come to it, and tell me what you saw.', // DRAFT
   ],
 
   waymarkDone: [
     'This is all of it. All I kept. Shall we go on?', // DRAFT
+  ],
+
+  // Spoken on re-entry, after the quiz redraws the scene.
+  reentryLook: [
+    'It stands as we agreed it now. Look again, if you doubt me. Then come back to the mark, and we will go on.', // DRAFT
+    'The room is settled. Walk it once more if you need to. The mark will take us onward when you are ready.', // DRAFT
   ],
 
   fallbackFlourish: [

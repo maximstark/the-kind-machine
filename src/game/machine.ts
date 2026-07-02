@@ -37,6 +37,17 @@ export class MachineVoice {
     return this.current?.text ?? null
   }
 
+  // Tap-to-hurry: first completes the reveal, then releases the hold.
+  // Pinned lines (hold >= 900, e.g. a standing question) only complete.
+  skip() {
+    if (!this.current) return
+    if (this.revealed < this.current.text.length) {
+      this.revealed = this.current.text.length
+    } else if (this.current.hold < 900) {
+      this.holdLeft = Math.min(this.holdLeft, 0.15)
+    }
+  }
+
   clear() {
     this.queue = []
     this.current = null

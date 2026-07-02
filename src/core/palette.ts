@@ -8,7 +8,7 @@ export const PALETTE_HEX = {
   ash: 0x7e7b72,
   black: 0x131118,
   gold: 0xa8842e,
-  green: 0x5fae7c,
+  green: 0x79d49a,
 } as const
 
 export const PALETTE = [
@@ -24,5 +24,5 @@ export const CSS = {
   ash: '#7e7b72',
   black: '#131118',
   gold: '#a8842e',
-  green: '#5fae7c',
+  green: '#79d49a',
 } as const

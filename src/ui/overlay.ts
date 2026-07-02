@@ -88,17 +88,17 @@ export class Overlay {
 
   // Machine speech: green, centered in the lower third, serif.
   machineText(str: string, opts: { alpha?: number; yFrac?: number; size?: number } = {}) {
-    const size = opts.size ?? 13
-    const maxW = this.w - 44
+    const size = opts.size ?? 16
+    const maxW = this.w - 40
     const font = `${size}px ${FONT_MACHINE}`
     const lines = this.wrap(str, font, maxW)
     const lh = size + 5
     const blockH = lines.length * lh
     const y = Math.round(this.h * (opts.yFrac ?? 0.68)) - blockH / 2
     const ctx = this.ctx
-    ctx.globalAlpha = (opts.alpha ?? 1) * 0.62
+    ctx.globalAlpha = (opts.alpha ?? 1) * 0.78
     ctx.fillStyle = CSS.black
-    ctx.fillRect(this.w / 2 - maxW / 2 - 4, y - 5, maxW + 8, blockH + 9)
+    ctx.fillRect(this.w / 2 - maxW / 2 - 5, y - 6, maxW + 10, blockH + 11)
     ctx.font = font
     ctx.fillStyle = CSS.green
     ctx.textAlign = 'center'
@@ -110,16 +110,16 @@ export class Overlay {
 
   // Player-side captions (examine text): bone, bottom band.
   caption(str: string, opts: { alpha?: number } = {}) {
-    const size = 11
-    const maxW = this.w - 36
+    const size = 13
+    const maxW = this.w - 34
     const font = `${size}px ${FONT_UI}`
     const lines = this.wrap(str, font, maxW)
     const lh = size + 4
-    const y = this.h - 26 - lines.length * lh
+    const y = this.h - 28 - lines.length * lh
     const ctx = this.ctx
-    ctx.globalAlpha = (opts.alpha ?? 0.92) * 0.6
+    ctx.globalAlpha = (opts.alpha ?? 0.92) * 0.75
     ctx.fillStyle = CSS.black
-    ctx.fillRect(this.w / 2 - maxW / 2 - 4, y - 4, maxW + 8, lines.length * lh + 7)
+    ctx.fillRect(this.w / 2 - maxW / 2 - 5, y - 5, maxW + 10, lines.length * lh + 9)
     ctx.font = font
     ctx.fillStyle = CSS.bone
     ctx.textAlign = 'center'
@@ -150,7 +150,7 @@ export class Overlay {
       ctx.fillStyle = CSS.green
       ctx.fillRect(x + 3, y + 3, w - 6, h - 6)
     }
-    const size = 12
+    const size = 14
     const font = `${size}px ${FONT_MACHINE}`
     const lines = this.wrap(label, font, w - 14)
     const lh = size + 3

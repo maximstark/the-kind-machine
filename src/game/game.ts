@@ -18,6 +18,7 @@ import type { GameScene, SceneContext } from './scenes/types'
 
 export type GameState =
   | 'title'
+  | 'cold-open'
   | 'draw-in'
   | 'explore'
   | 'dissolve-out'
@@ -141,11 +142,15 @@ export class Game {
         return
       }
       bus.emit('game:begin')
-      this.setState('draw-in')
+      this.beginColdOpen()
+      return
+    }
+    if (this.state === 'cold-open') {
+      voice.skip()
       return
     }
     if (this.state === 'quiz') {
-      quizController.handleTap(this.overlay, clientX, clientY)
+      if (!quizController.handleTap(this.overlay, clientX, clientY)) voice.skip()
       return
     }
     if (this.state === 'ending') {
@@ -156,8 +161,10 @@ export class Game {
           this.choicePrompt = null
           voice.clear()
           cb(id)
+          return
         }
       }
+      voice.skip()
       return
     }
     if (this.state !== 'explore') {
@@ -170,7 +177,7 @@ export class Game {
     // 1. The waymark. Tapping it from afar walks you to it first —
     // the mark is met, not commanded.
     const wm = this.worldToRt(this.scene.waymark)
-    if (wm.visible && dist(rt, wm) < 22 && (this.scene.waymarkActive?.() ?? true)) {
+    if (wm.visible && dist(rt, wm) < 22 && this.waymarkReady()) {
       if (this.player.object.position.distanceTo(this.scene.waymark) > 4.5) {
         this.queuedExamine = null
         this.player.onArrive = () => this.onWaymarkTap()
@@ -273,6 +280,35 @@ export class Game {
     this.mutationApplied = true
     ledger.shift(a.mutation)
     this.scene.applyDetailState(a.mutation, ledger.stateOf(a.mutation))
+  }
+
+  // --- intro ---
+
+  private beginColdOpen() {
+    this.setState('cold-open')
+    const lines = SCRIPT.coldOpen
+    let i = 0
+    const next = () => {
+      if (this.state !== 'cold-open') return
+      if (i < lines.length) {
+        voice.say(lines[i++], { onDone: next, yFrac: 0.46 })
+      } else {
+        this.setState('draw-in')
+      }
+    }
+    next()
+  }
+
+  // --- waymark gate: look before you are asked ---
+
+  private waymarkAnnounced = false
+
+  private waymarkReady(): boolean {
+    if (this.scene.waymarkActive) return this.scene.waymarkActive()
+    if (this.quizDone || this.scene.details.length === 0) return true
+    const looked = ledger.examines.filter((e) => e.sceneId === this.scene.id).length
+    const lingered = (ledger.sceneTimes.get(this.scene.id) ?? 0) > 75_000
+    return looked >= 2 || lingered
   }
 
   // --- quiz flow ---
@@ -386,8 +422,8 @@ export class Game {
       this.pipeline.dissolve = Math.max(0, 1 - this.stateT / 2.2)
       if (this.stateT >= 2.4) {
         this.setState('explore')
+        this.waymarkAnnounced = false
         voice.say(this.scene.entryLine)
-        voice.say(pick(SCRIPT.waymarkFirst))
         bus.emit('scene:entered', this.scene.id)
       }
     }
@@ -439,7 +475,8 @@ export class Game {
       this.pipeline.dissolve = Math.max(0, 1 - this.stateT / 1.8)
       if (this.stateT >= 2.0) {
         this.setState('explore')
-        this.slotQueue.push({ id: `post:${this.scene.id}`, notBefore: this.now + 4, fallback: false })
+        voice.say(pick(SCRIPT.reentryLook))
+        this.slotQueue.push({ id: `post:${this.scene.id}`, notBefore: this.now + 8, fallback: false })
         bus.emit('scene:reentered', this.scene.id)
       }
     }
@@ -448,6 +485,11 @@ export class Game {
       this.player.update(dt)
       this.logSeen(dt)
       this.speakSlots()
+      // Announce the mark the moment the gate opens.
+      if (!this.waymarkAnnounced && !this.quizDone && !this.scene.waymarkActive && this.scene.details.length > 0 && this.waymarkReady()) {
+        this.waymarkAnnounced = true
+        voice.say(pick(SCRIPT.waymarkFirst))
+      }
       ledger.sceneTimes.set(
         this.scene.id,
         (ledger.sceneTimes.get(this.scene.id) ?? 0) + dt * 1000
@@ -513,7 +555,7 @@ export class Game {
       }
       // The waymark: machine-green, on the overlay, of the interface.
       const wm = this.worldToRt(this.scene.waymark)
-      if (wm.visible && (this.scene.waymarkActive?.() ?? true)) {
+      if (wm.visible && this.waymarkReady()) {
         const s = 4 + Math.sin(t * 2.4) * 1.2
         const ctx = this.pipeline.uiCtx
         ctx.save()
