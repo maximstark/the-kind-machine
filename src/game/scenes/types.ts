@@ -27,6 +27,7 @@ export interface GameScene {
   anchors: Map<string, Anchor>
   plainExamines: PlainExamine[]
   waymark: THREE.Vector3 // where the machine waits; tap to end the walk
+  camBias?: THREE.Vector3 // camera leads the player toward the scene's heart
   entryLine: string
   quiz: { lie: boolean; mutation: boolean; quizCount?: number }
   weather?: number // ambient floor for the render pipeline, rises scene to scene
@@ -34,4 +35,19 @@ export interface GameScene {
   update?(dt: number, t: number): void
   // Scene-specific hook run when the player re-enters after the quiz.
   onReentry?(): void
+  // Intercept an examine tap (puzzles). Return true to swallow the default.
+  handleExamine?(id: string, ctx: SceneContext): boolean
+  // Waymark only counts when this says so (default: always).
+  waymarkActive?(): boolean
+  // Scene 4: replaces the quiz entirely when the waymark is reached.
+  finale?(ctx: SceneContext): void
+}
+
+// What a scene may ask of the game without owning it.
+export interface SceneContext {
+  say(text: string, opts?: { onDone?: () => void; hold?: number }): void
+  caption(text: string): void
+  beat(v: number): void
+  choice(options: string[], cb: (picked: string) => void): void
+  endGame(kind: 'accept' | 'keep'): void
 }

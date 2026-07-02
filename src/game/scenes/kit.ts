@@ -119,13 +119,19 @@ export function pawn(): THREE.Group {
   return g
 }
 
+// The face patch and clasped hands make the facing direction readable
+// at 360px; +z is "toward".
 export function figureStatue(h = 2.4): THREE.Group {
   const g = new THREE.Group()
   const body = new THREE.Mesh(new THREE.ConeGeometry(h * 0.24, h * 0.82, 6), MAT.bone)
   body.position.y = h * 0.41
   const head = new THREE.Mesh(new THREE.SphereGeometry(h * 0.11, 8, 6), MAT.bone)
   head.position.y = h * 0.88
-  g.add(body, head)
+  const face = new THREE.Mesh(new THREE.BoxGeometry(h * 0.11, h * 0.09, 0.04), MAT.charcoal)
+  face.position.set(0, h * 0.88, h * 0.1)
+  const hands = new THREE.Mesh(new THREE.BoxGeometry(h * 0.14, h * 0.1, h * 0.08), MAT.charcoal)
+  hands.position.set(0, h * 0.52, h * 0.2)
+  g.add(body, head, face, hands)
   return g
 }
 
@@ -219,6 +225,163 @@ export function wall(w: number, h: number, thick = 0.4): THREE.Mesh {
 
 // Linear fog calibrated to the iso camera distance: the whole scene sits in a
 // narrow depth band, so near/far are offsets from camDistance, not absolutes.
+export function pew(w = 1.8): THREE.Group {
+  const g = new THREE.Group()
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, 0.45), MAT.darkStone)
+  seat.position.y = 0.42
+  const back = new THREE.Mesh(new THREE.BoxGeometry(w, 0.5, 0.09), MAT.darkStone)
+  back.position.set(0, 0.62, -0.2)
+  const legs = new THREE.Mesh(new THREE.BoxGeometry(w * 0.9, 0.42, 0.08), MAT.charcoal)
+  legs.position.y = 0.21
+  g.add(seat, back, legs)
+  return g
+}
+
+export function altar(): THREE.Group {
+  const g = new THREE.Group()
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.18, 0.9), MAT.stone)
+  slab.position.y = 0.95
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.9, 0.7), MAT.darkStone)
+  base.position.y = 0.45
+  g.add(slab, base)
+  return g
+}
+
+// A row of candles; show the first `lit` of `total`.
+export function candleRow(total = 5): { group: THREE.Group; setCount: (n: number) => void } {
+  const group = new THREE.Group()
+  const candles: THREE.Group[] = []
+  for (let i = 0; i < total; i++) {
+    const c = candle(true, 0.22 + (i % 3) * 0.05)
+    c.position.x = (i - (total - 1) / 2) * 0.32
+    group.add(c)
+    candles.push(c)
+  }
+  return {
+    group,
+    setCount(n: number) {
+      candles.forEach((c, i) => (c.visible = i < n))
+    },
+  }
+}
+
+export function ribbon(gold: boolean): THREE.Mesh {
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.12, 0.7),
+    gold ? MAT.gold : MAT.bone
+  )
+  m.name = 'ribbon'
+  return m
+}
+
+// Chalk mark: a circle, crossed. Unlit so it stays chalk-bone, never gilds.
+const chalkMat = new THREE.MeshBasicMaterial({ color: PALETTE_HEX.bone })
+export function chalkMark(): THREE.Group {
+  const g = new THREE.Group()
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.03, 6, 16), chalkMat)
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.05, 0.03), chalkMat)
+  bar.rotation.z = Math.PI / 4
+  g.add(ring, bar)
+  return g
+}
+
+export type GlyphKind = 'circle' | 'cross' | 'wave' | 'eye'
+
+// Glyphs are small sculptures on plinths — readable silhouettes at 360px.
+export function glyphStone(kind: GlyphKind): THREE.Group {
+  const g = new THREE.Group()
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.85, 0.6), MAT.darkStone)
+  plinth.position.y = 0.42
+  g.add(plinth)
+  let top: THREE.Mesh
+  if (kind === 'circle') {
+    top = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.06, 6, 14), MAT.bone)
+  } else if (kind === 'cross') {
+    top = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.55, 0.1), MAT.bone)
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.1, 0.1), MAT.bone)
+    arm.position.y = 0.1
+    top.add(arm)
+  } else if (kind === 'wave') {
+    top = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.055, 6, 8, Math.PI), MAT.bone)
+    const half = new THREE.Mesh(
+      new THREE.TorusGeometry(0.1, 0.055, 6, 8, Math.PI),
+      MAT.bone
+    )
+    half.position.x = 0.3
+    half.rotation.z = Math.PI
+    top.add(half)
+  } else {
+    top = new THREE.Mesh(new THREE.SphereGeometry(0.24, 8, 6), MAT.bone)
+    top.scale.z = 0.45
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 5), MAT.charcoal)
+    pupil.position.z = 0.16
+    top.add(pupil)
+  }
+  top.position.y = 1.12
+  g.add(top)
+  g.name = `glyph-${kind}`
+  return g
+}
+
+export function towerBody(): THREE.Group {
+  const g = new THREE.Group()
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 3.0, 8, 9), MAT.stone)
+  body.position.y = 4
+  g.add(body)
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 2.5, 0.9, 9), MAT.darkStone)
+  cap.position.y = 8.4
+  g.add(cap)
+  return g
+}
+
+export function beaconFlame(): THREE.Mesh {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 6), flameMat)
+  m.name = 'beacon'
+  return m
+}
+
+// The god-beam: additive cone, the one bright thing.
+export function godBeam(height = 18, r = 3.2): THREE.Mesh {
+  const geo = new THREE.ConeGeometry(r, height, 12, 1, true)
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xe8dfc9,
+    transparent: true,
+    opacity: 0.16,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    fog: false,
+  })
+  const m = new THREE.Mesh(geo, mat)
+  m.position.y = height / 2
+  m.name = 'god-beam'
+  return m
+}
+
+// Ceiling of bodies: silhouette-first instanced masses. Never let them resolve.
+export function ceilingMasses(count: number, area: [number, number], y: number): THREE.InstancedMesh {
+  const geo = new THREE.IcosahedronGeometry(1.1, 0)
+  const mesh = new THREE.InstancedMesh(geo, MAT.charcoal, count)
+  const m = new THREE.Matrix4()
+  const q = new THREE.Quaternion()
+  const e = new THREE.Euler()
+  for (let i = 0; i < count; i++) {
+    e.set(rand() * Math.PI, rand() * Math.PI, rand() * Math.PI)
+    q.setFromEuler(e)
+    m.compose(
+      new THREE.Vector3(
+        (rand() - 0.5) * area[0],
+        y + (rand() - 0.5) * 1.6,
+        (rand() - 0.5) * area[1]
+      ),
+      q,
+      new THREE.Vector3(0.7 + rand() * 1.3, 0.5 + rand() * 0.9, 0.7 + rand() * 1.2)
+    )
+    mesh.setMatrixAt(i, m)
+  }
+  return mesh
+}
+
 export function lightRig(
   scene: THREE.Scene,
   opts?: { dirIntensity?: number; camDistance?: number; fogNear?: number; fogFar?: number }

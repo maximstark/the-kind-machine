@@ -12,7 +12,7 @@ import { Grid } from './grid'
 import { voice } from './machine'
 import { quizController } from './quiz'
 import { SCRIPT, pick } from './script'
-import type { GameScene } from './scenes/types'
+import type { GameScene, SceneContext } from './scenes/types'
 
 export type GameState =
   | 'title'
@@ -22,6 +22,7 @@ export type GameState =
   | 'quiz'
   | 'dissolve-in'
   | 'ending'
+  | 'outro'
 
 const CAPTION_SECONDS = 3.8
 const EXAMINE_RANGE = 2.4
@@ -44,6 +45,10 @@ export class Game {
   private stateT = 0 // seconds in current state
   private now = 0
   private sceneEnterT = 0
+  private travel: (() => GameScene) | null = null
+  private choicePrompt: { options: string[]; cb: (picked: string) => void } | null = null
+  private outroT = 0
+  private finished = false
   // Called when the player leaves through the waymark after the quiz.
   onAdvance: (() => void) | null = null
 
@@ -119,12 +124,28 @@ export class Game {
 
   private handleTap(clientX: number, clientY: number) {
     if (this.state === 'title') {
+      if (this.finished) {
+        location.reload()
+        return
+      }
       bus.emit('game:begin')
       this.setState('draw-in')
       return
     }
     if (this.state === 'quiz') {
       quizController.handleTap(this.overlay, clientX, clientY)
+      return
+    }
+    if (this.state === 'ending') {
+      if (this.choicePrompt) {
+        const id = this.overlay.hitCard(clientX, clientY)
+        if (id) {
+          const cb = this.choicePrompt.cb
+          this.choicePrompt = null
+          voice.clear()
+          cb(id)
+        }
+      }
       return
     }
     if (this.state !== 'explore') {
@@ -197,6 +218,10 @@ export class Game {
 
   private doExamine(id: string) {
     ledger.recordExamine(this.scene.id, id, this.now)
+    if (this.scene.handleExamine?.(id, this.sceneContext())) {
+      this.maybeShift(id)
+      return
+    }
     const a = this.scene.anchors.get(id)
     if (a) {
       const spec = ledger.specOf(id)
@@ -234,6 +259,16 @@ export class Game {
   // --- quiz flow ---
 
   private onWaymarkTap() {
+    if (this.scene.waymarkActive && !this.scene.waymarkActive()) return
+    if (this.scene.finale) {
+      if (this.quizDone) return
+      this.quizDone = true
+      this.player.stop()
+      voice.clear()
+      this.setState('ending')
+      this.scene.finale(this.sceneContext())
+      return
+    }
     if (this.quizDone) {
       voice.say(pick(SCRIPT.waymarkDone), { onDone: () => this.onAdvance?.() })
       return
@@ -241,6 +276,41 @@ export class Game {
     this.player.stop()
     voice.clear()
     this.setState('dissolve-out')
+  }
+
+  // What scenes may ask of the game.
+  sceneContext(): SceneContext {
+    return {
+      say: (text, opts) => voice.say(text, opts),
+      caption: (text) => this.showCaption(text),
+      beat: (v) => bus.emit('beat', v),
+      choice: (options, cb) => {
+        this.choicePrompt = { options, cb }
+      },
+      endGame: (kind) => this.endGame(kind),
+    }
+  }
+
+  travelTo(builder: () => GameScene) {
+    this.player.stop()
+    voice.clear()
+    this.travel = builder
+    this.setState('dissolve-out')
+  }
+
+  private endGame(kind: 'accept' | 'keep') {
+    this.finished = true
+    atmosphere.baseline = kind === 'accept' ? 0 : 0.3
+    if (kind === 'accept') atmosphere.becalm()
+    // One line before the ink runs out. Never confirmed, never explained.
+    voice.say('Thank you for helping me remember.', {
+      // DRAFT
+      hold: 3.2,
+      onDone: () => {
+        this.setState('outro')
+        this.outroT = 0
+      },
+    })
   }
 
   private applyReentry() {
@@ -288,14 +358,36 @@ export class Game {
     if (this.state === 'dissolve-out') {
       this.pipeline.dissolve = Math.min(1, this.stateT / 1.6)
       if (this.stateT >= 1.9) {
-        // If the world still owes a change, it happens in the dark.
-        if (this.mutationPending) this.applyShift()
-        this.setState('quiz')
-        quizController.start(this.scene, () => {
-          this.applyReentry()
-          this.quizDone = true
-          this.setState('dissolve-in')
-        })
+        if (this.travel) {
+          const builder = this.travel
+          this.travel = null
+          this.loadScene(builder())
+          this.setState('draw-in')
+        } else {
+          // If the world still owes a change, it happens in the dark.
+          if (this.mutationPending) this.applyShift()
+          this.setState('quiz')
+          quizController.start(this.scene, () => {
+            this.applyReentry()
+            this.quizDone = true
+            this.setState('dissolve-in')
+          })
+        }
+      }
+    }
+
+    if (this.state === 'ending') {
+      // The hall breathes while the account is read.
+      this.camTarget.lerp(this.scene.waymark.clone().setY(0.5), 1 - Math.exp(-dt * 0.8))
+      this.rig.moveCenter(this.camTarget.clone())
+    }
+
+    if (this.state === 'outro') {
+      this.outroT += dt
+      this.pipeline.dissolve = Math.min(1, this.outroT / 4.5)
+      if (this.outroT > 6) {
+        this.setState('title')
+        this.pipeline.dissolve = 1
       }
     }
 
@@ -314,8 +406,10 @@ export class Game {
         this.scene.id,
         (ledger.sceneTimes.get(this.scene.id) ?? 0) + dt * 1000
       )
-      // Camera follows.
-      this.camTarget.lerp(this.player.object.position, 1 - Math.exp(-dt * 3))
+      // Camera follows, led toward the scene's heart.
+      const lookAt = this.player.object.position.clone()
+      if (this.scene.camBias) lookAt.add(this.scene.camBias)
+      this.camTarget.lerp(lookAt, 1 - Math.exp(-dt * 3))
       this.rig.moveCenter(this.camTarget.clone().setY(0.5))
     }
 
@@ -373,7 +467,7 @@ export class Game {
       }
       // The waymark: machine-green, on the overlay, of the interface.
       const wm = this.worldToRt(this.scene.waymark)
-      if (wm.visible) {
+      if (wm.visible && (this.scene.waymarkActive?.() ?? true)) {
         const s = 4 + Math.sin(t * 2.4) * 1.2
         const ctx = this.pipeline.uiCtx
         ctx.save()
@@ -389,6 +483,17 @@ export class Game {
 
     if (this.state === 'quiz') {
       quizController.draw(o)
+    }
+
+    if (this.state === 'ending' && this.choicePrompt) {
+      const opts = this.choicePrompt.options
+      const w = o.w - 56
+      const h = 38
+      const gap = 12
+      const y0 = Math.round(o.h * 0.5 - (opts.length * h + (opts.length - 1) * gap) / 2)
+      opts.forEach((opt, i) => {
+        o.card(opt, opt, 28, y0 + i * (h + gap), w, h, {})
+      })
     }
 
     voice.draw(o)

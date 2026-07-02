@@ -42,6 +42,10 @@ export class QuizController {
     return this.phase
   }
 
+  get currentDetailId(): string | null {
+    return this.order[this.index] ?? null
+  }
+
   private get detailId() {
     return this.order[this.index]
   }

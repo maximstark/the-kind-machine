@@ -11,12 +11,26 @@ class Atmosphere {
   // Scene-scaled floor; rises over the course of the game.
   baseline = 0
 
+  private still = false
+
   // Nudge the weather. Strength 0..1.
   pulse(strength = 0.4) {
+    if (this.still) return
     this.target = Math.min(1, Math.max(this.target, strength))
   }
 
+  // Perfect calm, and it stays that way.
+  becalm() {
+    this.still = true
+    this.baseline = 0
+    this.target = 0
+  }
+
   update(dt: number, t: number) {
+    if (this.still) {
+      this.level += (0 - this.level) * (1 - Math.exp(-dt / 0.5))
+      return
+    }
     if (t > this.nextStir) {
       this.target = Math.max(this.target, 0.04 + Math.random() * 0.1)
       this.nextStir = t + 5 + Math.random() * 16

@@ -6,14 +6,24 @@ import { quizController } from './game/quiz'
 import { voice } from './game/machine'
 import { atmosphere } from './core/atmosphere'
 import { buildField } from './game/scenes/field'
+import { buildChapel } from './game/scenes/chapel'
+import { buildTower } from './game/scenes/tower'
+import { buildDoor } from './game/scenes/door'
 import { bus } from './core/bus'
+import type { GameScene } from './game/scenes/types'
 
 const canvas = document.getElementById('game') as HTMLCanvasElement
 const game = new Game(canvas)
 
-game.loadScene(buildField())
+const CHAIN: Array<() => GameScene> = [buildField, buildChapel, buildTower, buildDoor]
+let sceneIndex = 0
+
+game.loadScene(CHAIN[0]())
 game.onAdvance = () => {
-  // Scene chain lands in M5; for now the field is the whole world.
+  sceneIndex++
+  if (sceneIndex < CHAIN.length) {
+    game.travelTo(CHAIN[sceneIndex])
+  }
 }
 
 let last = performance.now()
@@ -40,6 +50,7 @@ document.addEventListener('visibilitychange', () => {
   trust,
   quiz: quizController,
   voice,
+  THREE,
   tapClient(x: number, y: number) {
     ;(game as any).handleTap(x, y)
   },
@@ -50,5 +61,16 @@ document.addEventListener('visibilitychange', () => {
       (p.x / game.pipeline.rtWidth) * window.innerWidth,
       (p.y / game.pipeline.rtHeight) * window.innerHeight
     )
+  },
+  // Debug: jump directly to a scene by id.
+  jumpTo(id: string) {
+    const builders: Record<string, () => GameScene> = {
+      field: buildField,
+      chapel: buildChapel,
+      tower: buildTower,
+      door: buildDoor,
+    }
+    sceneIndex = CHAIN.findIndex((b) => b === builders[id])
+    game.travelTo(builders[id])
   },
 }

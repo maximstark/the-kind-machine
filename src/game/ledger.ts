@@ -12,6 +12,7 @@ export interface DetailSpec {
   initial: string
   mutated: string
   sky?: boolean // visible from anywhere (moons); dwell needs no proximity
+  mutable?: boolean // eligible as the scene's true world-mutation (default true)
   describe?: Record<string, string> // examine caption per state
 }
 
@@ -87,8 +88,10 @@ export class Ledger {
     const ids = [...this.details.values()].filter((d) => d.sceneId === sceneId).map((d) => d.spec.id)
     const shuffled = [...ids].sort(() => Math.random() - 0.5)
     const lie = opts.lie ? shuffled[0] : null
-    const mutation = opts.mutation ? shuffled[1] : null
-    const honest = shuffled[opts.lie && opts.mutation ? 2 : opts.lie || opts.mutation ? 1 : 0]
+    const mutation = opts.mutation
+      ? shuffled.find((id) => id !== lie && (this.details.get(id)!.spec.mutable ?? true)) ?? null
+      : null
+    const honest = shuffled.find((id) => id !== lie && id !== mutation) ?? null
 
     const quizCount = opts.quizCount ?? 3
     const roleIds = [lie, mutation, honest].filter(Boolean) as string[]
