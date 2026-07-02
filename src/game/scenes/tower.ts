@@ -76,6 +76,46 @@ export function buildTower(): GameScene {
   three.add(c1)
   grid.blockCircle(-6, -1, 0.8)
 
+  // Torches, dropped where the crowd stood when the light went up.
+  three.add(
+    kit.droppedTorches([
+      [-1.5, 4.2, 0.4],
+      [2.2, 3.1, 2.1],
+      [4.4, 1.2, 1.1],
+      [0.8, 6.0, 2.9],
+      [-3.6, 5.1, 0.9],
+    ])
+  )
+
+  // Rubble skirting the tower base.
+  three.add(kit.rubble(16, [7, 4], [towerPos.x, towerPos.z + 3]))
+
+  // Dark windows up the shaft. Nothing looks out of them.
+  {
+    const wins: THREE.BufferGeometry[] = []
+    for (let i = 0; i < 3; i++) {
+      const g = new THREE.BoxGeometry(0.5, 0.85, 0.2)
+      const a = 0.65 + i * 0.35
+      g.translate(
+        towerPos.x + Math.cos(a) * 2.62,
+        2.6 + i * 1.9,
+        towerPos.z + Math.sin(a) * 2.62
+      )
+      wins.push(g)
+    }
+    three.add(new THREE.Mesh(kit.mergeParts(wins), kit.MAT.charcoal))
+  }
+
+  // The machine waits as a figure of bone.
+  const bust = kit.archivistBust()
+  bust.position.set(-5.6, 0, -2.6)
+  bust.rotation.y = Math.PI / 3
+  three.add(bust)
+  grid.blockCircle(-5.6, -2.6, 0.7)
+
+  const ash = kit.ashFall(36, 36, 65)
+  three.add(ash.points)
+
   const details: DetailSpec[] = [
     {
       id: 'tower-carried',
@@ -156,10 +196,13 @@ export function buildTower(): GameScene {
     details,
     anchors,
     plainExamines,
-    waymark: new THREE.Vector3(-5.6, 0.4, -2.6),
+    waymark: new THREE.Vector3(-5.6, 1.9, -2.6),
     entryLine: 'The signal tower. When it burned, they knew to gather. You knew what it meant. Everyone did.', // DRAFT
     quiz: { lie: true, mutation: true, quizCount: 3 },
     weather: 0.11,
+    update(dt) {
+      ash.update(dt)
+    },
     waymarkActive: () => solved,
     handleExamine(id: string, ctx: SceneContext): boolean {
       if (!id.startsWith('glyph-') || solved) return false

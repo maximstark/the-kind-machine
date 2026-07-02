@@ -61,6 +61,36 @@ export function buildField(): GameScene {
   three.add(col)
   grid.blockCircle(-5.5, 3.5, 0.8)
 
+  // Dead trees on the field's shoulders.
+  for (const [x, z] of [[-8, -4], [6.5, -8], [-3, -10]] as const) {
+    const tr = kit.deadTree(2.6 + Math.random() * 1.2)
+    tr.position.set(x, 0, z)
+    three.add(tr)
+    grid.blockCircle(x, z, 0.5)
+  }
+
+  // The town they left, ruined, at the fog line.
+  three.add(kit.ruinSkyline(7, new THREE.Vector3(2, 0, 2), 21))
+
+  // A dropped bundle nobody came back for.
+  const bundle = new THREE.Mesh(
+    new THREE.SphereGeometry(0.32, 7, 5),
+    kit.MAT.charcoal
+  )
+  bundle.scale.set(1.3, 0.55, 0.9)
+  bundle.position.set(1.5, 0.15, 4.8)
+  three.add(bundle)
+
+  // The machine waits as a figure of bone.
+  const bust = kit.archivistBust()
+  bust.position.set(8, 0, -5)
+  bust.rotation.y = Math.PI / 4
+  three.add(bust)
+  grid.blockCircle(8, -5, 0.7)
+
+  const ash = kit.ashFall(40, 40, 70)
+  three.add(ash.points)
+
   // An ash silhouette against the column — the first unremarked detail.
   const sil = kit.ashSilhouette()
   sil.position.set(-5.05, 0.1, 3.5)
@@ -124,6 +154,11 @@ export function buildField(): GameScene {
       object: col,
       caption: 'A shape against the column, printed in ash. About your height.', // DRAFT
     },
+    {
+      id: 'field-bundle',
+      object: bundle,
+      caption: 'A bundle, dropped. Clothes, tied in a hurry. Nobody came back for it.', // DRAFT
+    },
   ]
 
   return {
@@ -135,10 +170,13 @@ export function buildField(): GameScene {
     details,
     anchors,
     plainExamines,
-    waymark: new THREE.Vector3(8, 0.4, -5),
+    waymark: new THREE.Vector3(8, 1.9, -5),
     entryLine: 'You are awake. Good. This is the field, as well as I remember it. Walk. Look. I will ask you to help me with the details.', // DRAFT
     quiz: { lie: false, mutation: false, quizCount: 3 },
     weather: 0.015,
+    update(dt) {
+      ash.update(dt)
+    },
     applyDetailState(id, state) {
       if (id === 'field-moons') moon2.visible = state === 'Two'
       if (id === 'field-stones') stoneRing[7].visible = state === 'Eight'

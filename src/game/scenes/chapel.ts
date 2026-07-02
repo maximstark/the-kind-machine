@@ -102,6 +102,51 @@ export function buildChapel(): GameScene {
   torch.position.set(1.5, 0, 6.5)
   three.add(torch)
 
+  // A roof beam that came down and stayed down.
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(0.35, 7.5, 0.4), kit.MAT.charcoal)
+  beam.position.set(-2.6, 1.6, -3.4)
+  beam.rotation.z = 1.05
+  beam.rotation.y = 0.3
+  three.add(beam)
+  grid.blockCircle(-2.6, -3.4, 0.6)
+
+  // Banners on the north wall, tarnished.
+  for (const bx of [-2.6, 2.6]) {
+    const banner = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 2.2), kit.MAT.darkStone)
+    banner.position.set(bx, 2.2, -6.72)
+    three.add(banner)
+    const band = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.16, 0.05), kit.MAT.gold)
+    band.position.set(bx, 1.2, -6.7)
+    three.add(band)
+  }
+
+  // A burying ground beside the chapel. Some markers newer than others.
+  {
+    const markers: THREE.BufferGeometry[] = []
+    for (let i = 0; i < 6; i++) {
+      const g = new THREE.BoxGeometry(0.34, 0.7 + (i % 3) * 0.18, 0.1)
+      g.rotateZ((Math.random() - 0.5) * 0.3)
+      g.rotateY((Math.random() - 0.5) * 0.5)
+      g.translate(6.8 + (i % 3) * 1.1, 0.32, -1.5 + Math.floor(i / 3) * 1.4)
+      markers.push(g)
+    }
+    const graveMesh = new THREE.Mesh(kit.mergeParts(markers), kit.MAT.stone)
+    three.add(graveMesh)
+  }
+
+  // Rubble along the wall bases.
+  three.add(kit.rubble(14, [1.4, 10], [-4.2, -1]))
+
+  // The machine waits as a figure of bone.
+  const bust = kit.archivistBust()
+  bust.position.set(0, 0, 4.2)
+  bust.rotation.y = Math.PI
+  three.add(bust)
+  grid.blockCircle(0, 4.2, 0.7)
+
+  const ash = kit.ashFall(30, 30, 55)
+  three.add(ash.points)
+
   const details: DetailSpec[] = [
     {
       id: 'chapel-candles',
@@ -175,10 +220,13 @@ export function buildChapel(): GameScene {
     details,
     anchors,
     plainExamines,
-    waymark: new THREE.Vector3(0, 0.4, 4.2),
+    waymark: new THREE.Vector3(0, 1.9, 4.2),
     entryLine: 'The chapel. They brought their fears here first, before they brought each other.', // DRAFT
     quiz: { lie: true, mutation: true, quizCount: 3 },
     weather: 0.05,
+    update(dt) {
+      ash.update(dt)
+    },
     applyDetailState(id, state) {
       if (id === 'chapel-candles') candles.setCount(state === 'Five' ? 5 : state === 'Four' ? 4 : 3)
       if (id === 'chapel-ribbon') {

@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { PALETTE_HEX } from '../../core/palette'
 
 // Modular graybox prop kit. Flat-shaded low-poly primitives; the dither
@@ -228,6 +229,189 @@ export function wall(w: number, h: number, thick = 0.4): THREE.Mesh {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, thick), MAT.darkStone)
   m.position.y = h / 2
   return m
+}
+
+export function mergeParts(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  return mergeGeometries(geos)
+}
+
+// Ash falls everywhere the world still stands. Points at ~1px, drifting down.
+export function ashFall(
+  w: number,
+  d: number,
+  count = 70,
+  opts?: { height?: number; speed?: number }
+): { points: THREE.Points; update: (dt: number) => void } {
+  const height = opts?.height ?? 12
+  const speed = opts?.speed ?? 0.55
+  const positions = new Float32Array(count * 3)
+  const drift = new Float32Array(count)
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = (rand() - 0.5) * w
+    positions[i * 3 + 1] = rand() * height
+    positions[i * 3 + 2] = (rand() - 0.5) * d
+    drift[i] = (rand() - 0.5) * 0.3
+  }
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+  const mat = new THREE.PointsMaterial({
+    color: 0x8f8a7d,
+    size: 1.6,
+    sizeAttenuation: false,
+    transparent: true,
+    opacity: 0.5,
+    depthWrite: false,
+  })
+  const points = new THREE.Points(geo, mat)
+  points.name = 'ash-fall'
+  const pos = geo.attributes.position as THREE.BufferAttribute
+  return {
+    points,
+    update(dt: number) {
+      for (let i = 0; i < count; i++) {
+        let y = pos.getY(i) - speed * dt * (0.6 + (i % 5) * 0.18)
+        if (y < 0.1) y = height
+        pos.setY(i, y)
+        pos.setX(i, pos.getX(i) + drift[i] * dt)
+      }
+      pos.needsUpdate = true
+    },
+  }
+}
+
+// A dead tree: trunk + a few branches merged into one silhouette mesh.
+export function deadTree(h = 3.2): THREE.Mesh {
+  const parts: THREE.BufferGeometry[] = []
+  const trunk = new THREE.CylinderGeometry(0.06, 0.16, h, 5)
+  trunk.translate(0, h / 2, 0)
+  parts.push(trunk)
+  const branches = 3 + Math.floor(rand() * 3)
+  for (let i = 0; i < branches; i++) {
+    const bh = h * (0.3 + rand() * 0.35)
+    const b = new THREE.CylinderGeometry(0.02, 0.06, bh, 4)
+    b.translate(0, bh / 2, 0)
+    b.rotateZ(0.5 + rand() * 0.9)
+    b.rotateY(rand() * Math.PI * 2)
+    b.translate(0, h * (0.45 + rand() * 0.4), 0)
+    parts.push(b)
+  }
+  const m = new THREE.Mesh(mergeGeometries(parts), MAT.charcoal)
+  m.rotation.y = rand() * Math.PI
+  m.name = 'dead-tree'
+  return m
+}
+
+// The ruined town on the horizon: flat dark slabs merged into one mesh,
+// meant to sit at the fog line and never resolve.
+export function ruinSkyline(count: number, arcCenter: THREE.Vector3, radius: number): THREE.Mesh {
+  const parts: THREE.BufferGeometry[] = []
+  for (let i = 0; i < count; i++) {
+    const a = Math.PI * 1.15 + (i / (count - 1)) * Math.PI * 0.75
+    const w = 1.2 + rand() * 2.4
+    const h = 2 + rand() * 5
+    const g = new THREE.BoxGeometry(w, h, 0.6)
+    g.translate(
+      arcCenter.x + Math.cos(a) * radius,
+      h / 2 - 0.1,
+      arcCenter.z + Math.sin(a) * radius
+    )
+    parts.push(g)
+  }
+  const m = new THREE.Mesh(mergeGeometries(parts), MAT.charcoal)
+  m.name = 'ruin-skyline'
+  return m
+}
+
+// Rubble: one instanced mesh of small shards.
+export function rubble(count: number, area: [number, number], center: [number, number]): THREE.InstancedMesh {
+  const geo = new THREE.TetrahedronGeometry(0.16)
+  const mesh = new THREE.InstancedMesh(geo, MAT.stone, count)
+  const m = new THREE.Matrix4()
+  const q = new THREE.Quaternion()
+  const e = new THREE.Euler()
+  for (let i = 0; i < count; i++) {
+    e.set(rand() * Math.PI, rand() * Math.PI, rand() * Math.PI)
+    q.setFromEuler(e)
+    m.compose(
+      new THREE.Vector3(
+        center[0] + (rand() - 0.5) * area[0],
+        0.06 + rand() * 0.06,
+        center[1] + (rand() - 0.5) * area[1]
+      ),
+      q,
+      new THREE.Vector3(0.5 + rand(), 0.4 + rand() * 0.6, 0.5 + rand())
+    )
+    mesh.setMatrixAt(i, m)
+  }
+  return mesh
+}
+
+// A bank of candles merged into two meshes (sticks + flames).
+export function candleBank(count: number, spread = 1.6): THREE.Group {
+  const sticks: THREE.BufferGeometry[] = []
+  const flames: THREE.BufferGeometry[] = []
+  for (let i = 0; i < count; i++) {
+    const h = 0.18 + rand() * 0.22
+    const x = (rand() - 0.5) * spread
+    const z = (rand() - 0.5) * spread * 0.5
+    const s = new THREE.CylinderGeometry(0.045, 0.055, h, 5)
+    s.translate(x, h / 2, z)
+    sticks.push(s)
+    const f = new THREE.SphereGeometry(0.045, 5, 4)
+    f.translate(x, h + 0.06, z)
+    flames.push(f)
+  }
+  const g = new THREE.Group()
+  g.add(new THREE.Mesh(mergeGeometries(sticks), MAT.bone))
+  g.add(new THREE.Mesh(mergeGeometries(flames), flameMat))
+  const glow = new THREE.PointLight(0xc28f2c, 8, 6, 1.8)
+  glow.position.y = 0.5
+  g.add(glow)
+  g.name = 'candle-bank'
+  return g
+}
+
+// Cold torches where the crowd dropped them: merged poles + heads.
+export function droppedTorches(spots: [number, number, number][]): THREE.Group {
+  const poles: THREE.BufferGeometry[] = []
+  const heads: THREE.BufferGeometry[] = []
+  for (const [x, z, yaw] of spots) {
+    const pole = new THREE.CylinderGeometry(0.05, 0.07, 1.5, 5)
+    pole.rotateZ(Math.PI / 2 - 0.12)
+    pole.rotateY(yaw)
+    pole.translate(x, 0.12, z)
+    poles.push(pole)
+    const head = new THREE.SphereGeometry(0.13, 6, 5)
+    head.translate(x + Math.cos(yaw) * 0.75, 0.16, z - Math.sin(yaw) * 0.75)
+    heads.push(head)
+  }
+  const g = new THREE.Group()
+  g.add(new THREE.Mesh(mergeGeometries(poles), MAT.darkStone))
+  g.add(new THREE.Mesh(mergeGeometries(heads), MAT.charcoal))
+  g.name = 'dropped-torches'
+  return g
+}
+
+// The ARCHIVIST's locus: a classical bust that waits at the mark.
+// The pipeline smears reality around it; the render never keeps it still.
+export function archivistBust(): THREE.Group {
+  const g = new THREE.Group()
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.0, 0.7), MAT.darkStone)
+  plinth.position.y = 0.5
+  const shoulders = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.22, 0.3), MAT.bone)
+  shoulders.position.y = 1.12
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.14, 6), MAT.bone)
+  neck.position.y = 1.28
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 9, 7), MAT.bone)
+  head.position.y = 1.46
+  head.scale.set(0.88, 1.05, 0.92)
+  const brow = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.05, 0.1), MAT.stone)
+  brow.position.set(0, 1.5, 0.13)
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.07), MAT.bone)
+  nose.position.set(0, 1.44, 0.17)
+  g.add(plinth, shoulders, neck, head, brow, nose)
+  g.name = 'archivist'
+  return g
 }
 
 // Linear fog calibrated to the iso camera distance: the whole scene sits in a

@@ -441,6 +441,13 @@ export class Game {
     this.pipeline.disturb = atmosphere.amplitude
     // At higher amplitudes the interface is weather too.
     this.pipeline.uiDisturb = Math.max(0, atmosphere.amplitude - 0.35) * 0.8
+    // The render is least stable around the machine's locus.
+    if ((this.state === 'explore' || this.state === 'ending') && this.waymarkReady()) {
+      const lp = this.worldToRt(this.scene.waymark.clone().setY(1.3))
+      this.pipeline.setLocus(lp.x, lp.y, lp.visible ? 0.32 : 0)
+    } else {
+      this.pipeline.setLocus(-999, -999, 0)
+    }
     this.scene?.update?.(dt, t)
 
     voice.update(dt)

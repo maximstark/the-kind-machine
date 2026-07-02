@@ -98,6 +98,47 @@ export function buildDoor(): GameScene {
   chalkPile.position.copy(P(22, 2.8))
   three.add(chalkPile)
 
+  // A pale runner down the axis: the walk the eye is meant to take.
+  const runnerGeo = new THREE.PlaneGeometry(3.2, 62)
+  runnerGeo.rotateX(-Math.PI / 2)
+  const runner = new THREE.Mesh(
+    runnerGeo,
+    new THREE.MeshLambertMaterial({ color: 0x6d6f76 })
+  )
+  runner.position.copy(P(21, 0, 0.12))
+  runner.rotation.y = Math.PI / 4
+  three.add(runner)
+
+  // Columns that fell across the walk. You go around what came down.
+  for (const [s, w, yawOff] of [
+    [16, -1.5, 0.15],
+    [30, 2, -0.2],
+  ] as const) {
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.8, 7.5, 8), kit.MAT.stone)
+    const pos = P(s, w)
+    seg.position.copy(pos).setY(0.75)
+    seg.rotation.z = Math.PI / 2
+    seg.rotation.y = Math.PI / 4 + Math.PI / 2 + yawOff
+    three.add(seg)
+    // Block a short line of cells across the segment.
+    for (let k = -3; k <= 3; k++) {
+      const b = P(s, w + k)
+      grid.blockCircle(b.x, b.z, 0.7)
+    }
+  }
+
+  // Candle banks flanking the threshold.
+  const bankL = kit.candleBank(7)
+  bankL.position.copy(P(43.5, -4.2))
+  const bankR = kit.candleBank(7)
+  bankR.position.copy(P(43.5, 4.2))
+  three.add(bankL, bankR)
+
+  const ash = kit.ashFall(34, 60, 60, { height: 16, speed: 0.4 })
+  ash.points.rotation.y = Math.PI / 4
+  ash.points.position.copy(P(22, 0))
+  three.add(ash.points)
+
   const details: DetailSpec[] = []
 
   const plainExamines: PlainExamine[] = [
@@ -218,7 +259,8 @@ export function buildDoor(): GameScene {
     weather: 0.18,
     finale: assemble,
     applyDetailState() {},
-    update(_dt: number, t: number) {
+    update(dt: number, t: number) {
+      ash.update(dt)
       // Dither-sparkle inside the beam: cheap flicker, never still.
       const m = beam.material as THREE.MeshBasicMaterial
       const flicker = 0.02 * Math.sin(t * 9.7) + 0.015 * Math.sin(t * 23.3 + 1.7)

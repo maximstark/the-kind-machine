@@ -19,6 +19,8 @@ uniform float uDisturb;
 uniform float uDissolve;
 uniform float uUIDisturb;
 uniform float uVignette;
+uniform vec2 uLocus;
+uniform float uLocusAmp;
 uniform vec3 uPal[5];
 
 float hash21(vec2 p) {
@@ -64,10 +66,15 @@ void main() {
   vec2 uv = vUv;
   vec2 px = uv * uRes;
 
+  float amt = uDisturb;
+  if (uLocusAmp > 0.001) {
+    amt += uLocusAmp * smoothstep(52.0, 9.0, distance(px, uLocus));
+  }
+
   vec3 col;
-  vec3 drift = driftUv(uv, uDisturb);
+  vec3 drift = driftUv(uv, amt);
   vec2 duv = drift.xy;
-  if (uDisturb > 0.002) {
+  if (amt > 0.002) {
     vec3 s0 = texture2D(uScene, uv + duv).rgb;
     vec3 s1 = texture2D(uScene, uv + duv * 1.7).rgb;
     vec3 s2 = texture2D(uScene, uv + duv * 0.4).rgb;
@@ -111,11 +118,14 @@ void main() {
   if (hasUI) {
     c = clamp(mix(col, ui.rgb, ui.a) + (bay - 0.5) * 0.1, 0.0, 1.0);
   }
+  // Machine green only where the interface itself is green — a pale UI
+  // pixel blended over a warm surface must not gild into green.
+  bool wantGreen = hasUI && ui.g > ui.r * 1.15 && ui.g > ui.b * 1.15;
 
   float best = 1e9;
   vec3 outc = uPal[0];
   for (int i = 0; i < 5; i++) {
-    if (i == 4 && !hasUI) break;
+    if (i == 4 && !wantGreen) break;
     vec3 p = uPal[i];
     vec3 dd = c - p;
     float rbar = (c.r + p.r) * 0.5;
@@ -181,6 +191,8 @@ export class Pipeline {
       uDissolve: { value: 0 },
       uUIDisturb: { value: 0 },
       uVignette: { value: 0.5 },
+      uLocus: { value: new THREE.Vector2(-999, -999) },
+      uLocusAmp: { value: 0 },
       uPal: { value: PALETTE.map((c) => new THREE.Vector3(c.r, c.g, c.b)) },
     }
 
@@ -257,6 +269,10 @@ export class Pipeline {
   }
   set vignette(v: number) {
     this.uniforms.uVignette.value = v
+  }
+  setLocus(x: number, y: number, amp: number) {
+    ;(this.uniforms.uLocus.value as THREE.Vector2).set(x, y)
+    this.uniforms.uLocusAmp.value = amp
   }
   get dissolve(): number {
     return this.uniforms.uDissolve.value as number
