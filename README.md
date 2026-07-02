@@ -4,7 +4,7 @@ The world has ended. A machine is reconstructing your memories of its final day 
 
 An 8–12 minute isometric psychological horror vignette for the phone in your hand. No jump scares. No combat. Just a narrator whose kindness never breaks, a world that changes when you aren't looking, and the growing certainty that one of you is misremembering on purpose.
 
-**▶ [Play the demo](https://REPLACE-ME.github.io/the-kind-machine/)** — best in portrait, sound on, one sitting.
+**▶ [Play the demo](https://maximstark.github.io/the-kind-machine/)** — best in portrait, sound on, one sitting.
 
 > Work in progress: all dialogue is draft, all art is placeholder. The bones are load-bearing; the skin comes later.
 
