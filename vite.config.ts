@@ -39,6 +39,8 @@ function flourishStub(): Plugin {
 }
 
 export default defineConfig({
+  // Relative base so the bundle works from a GitHub Pages subpath.
+  base: './',
   plugins: [flourishStub()],
   server: {
     host: true,
