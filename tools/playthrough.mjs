@@ -185,12 +185,12 @@ await waitForState('explore', 30000)
 console.log('DOOR entered')
 await page.screenshot({ path: `shots/pt-${MODE}-door.png` })
 
-// The hall: walk to the beam.
-await tapWorld(0, 0, -23)
-await page.waitForTimeout(21000)
+// The hall: walk up the diagonal toward the beam, then meet the mark.
+await waymark()
+await page.waitForTimeout(26000)
 await page.screenshot({ path: `shots/pt-${MODE}-hall.png` })
 await waymark()
-await waitForState('ending', 20000)
+await waitForState('ending', 60000)
 console.log('FINALE running')
 
 // Wait for the choice cards (the assembly takes a while).

@@ -45,6 +45,12 @@ export class IsoRig {
   getViewHeight() {
     return this.viewHeight
   }
+  getViewWidth() {
+    return this.viewHeight * this.aspect
+  }
+  setViewWidth(w: number) {
+    this.setViewHeight(w / this.aspect)
+  }
   getCenter() {
     return this.center.clone()
   }

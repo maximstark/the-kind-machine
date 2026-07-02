@@ -114,7 +114,14 @@ export function pawn(): THREE.Group {
   body.position.y = 0.55
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6), MAT.bone)
   head.position.y = 1.12
-  g.add(body, head)
+  // Blob shadow: fake, cheap, keeps the figure readable at every zoom.
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(0.38, 12),
+    new THREE.MeshBasicMaterial({ color: 0x0d0c10, transparent: true, opacity: 0.55, depthWrite: false })
+  )
+  shadow.rotation.x = -Math.PI / 2
+  shadow.position.y = 0.17
+  g.add(body, head, shadow)
   g.name = 'pawn'
   return g
 }

@@ -167,10 +167,17 @@ export class Game {
 
     const rt = this.clientToRt(clientX, clientY)
 
-    // 1. The waymark.
+    // 1. The waymark. Tapping it from afar walks you to it first —
+    // the mark is met, not commanded.
     const wm = this.worldToRt(this.scene.waymark)
-    if (wm.visible && dist(rt, wm) < 22) {
-      this.onWaymarkTap()
+    if (wm.visible && dist(rt, wm) < 22 && (this.scene.waymarkActive?.() ?? true)) {
+      if (this.player.object.position.distanceTo(this.scene.waymark) > 4.5) {
+        this.queuedExamine = null
+        this.player.onArrive = () => this.onWaymarkTap()
+        this.player.walkTo(this.scene.grid.worldToCell(this.scene.waymark))
+      } else {
+        this.onWaymarkTap()
+      }
       return
     }
 
@@ -411,6 +418,12 @@ export class Game {
       // The hall breathes while the account is read.
       this.camTarget.lerp(this.scene.waymark.clone().setY(0.5), 1 - Math.exp(-dt * 0.8))
       this.rig.moveCenter(this.camTarget.clone())
+    }
+
+    if ((this.state === 'explore' || this.state === 'ending') && this.scene.viewWidthAt) {
+      const targetW = this.scene.viewWidthAt(this.player.object.position)
+      const curW = this.rig.getViewWidth()
+      this.rig.setViewWidth(curW + (targetW - curW) * (1 - Math.exp(-dt * 1.6)))
     }
 
     if (this.state === 'outro') {

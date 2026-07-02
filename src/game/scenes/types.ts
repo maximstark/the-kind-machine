@@ -28,6 +28,9 @@ export interface GameScene {
   plainExamines: PlainExamine[]
   waymark: THREE.Vector3 // where the machine waits; tap to end the walk
   camBias?: THREE.Vector3 // camera leads the player toward the scene's heart
+  // Dynamic zoom: view width as a function of where the player stands.
+  // The hall uses this for the pullback — awe is a camera setting.
+  viewWidthAt?(playerPos: THREE.Vector3): number
   entryLine: string
   quiz: { lie: boolean; mutation: boolean; quizCount?: number }
   weather?: number // ambient floor for the render pipeline, rises scene to scene

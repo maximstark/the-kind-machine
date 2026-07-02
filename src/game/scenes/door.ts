@@ -8,6 +8,19 @@ import type { GameScene, PlainExamine, SceneContext } from './types'
 // Scene 4 — The Door. The monumental hall. The machine assembles its
 // account of the final day from the ledger — including the wrong answers
 // it fed you — and asks you to choose whose memory stands.
+//
+// The hall runs along the screen-up diagonal so the whole walk reads
+// vertically in portrait: a lone tiny figure, a vast hall, one beam.
+
+const AXIS_U = new THREE.Vector3(-Math.SQRT1_2, 0, -Math.SQRT1_2) // up the screen
+const AXIS_R = new THREE.Vector3(Math.SQRT1_2, 0, -Math.SQRT1_2) // screen right
+
+function P(s: number, w: number, y = 0): THREE.Vector3 {
+  return new THREE.Vector3()
+    .addScaledVector(AXIS_U, s)
+    .addScaledVector(AXIS_R, w)
+    .setY(y)
+}
 
 export function buildDoor(): GameScene {
   const three = new THREE.Scene()
@@ -19,49 +32,60 @@ export function buildDoor(): GameScene {
   })
   kit.reseed(77)
 
-  three.add(kit.ground(44, 84, 0.05))
-  const grid = new Grid(24, 66)
+  three.add(kit.ground(110, 110, 0.05))
+  const grid = new Grid(90, 90)
 
   // Colonnades down the length of the hall.
   for (let i = 0; i < 8; i++) {
-    const z = 16 - i * 6
-    const l = kit.column(14, 0.8)
-    l.position.set(-7, 0, z)
-    const r = kit.column(14, 0.8)
-    r.position.set(7, 0, z)
-    three.add(l, r)
-    grid.blockCircle(-7, z, 1.1)
-    grid.blockCircle(7, z, 1.1)
+    const s = 8 + i * 5.5
+    for (const w of [-7, 7]) {
+      const col = kit.column(14, 0.8)
+      col.position.copy(P(s, w))
+      three.add(col)
+      grid.blockCircle(col.position.x, col.position.z, 1.1)
+    }
   }
 
-  // The ceiling of bodies. Backlit masses; never resolving.
-  three.add(kit.ceilingMasses(110, [24, 66], 18.5))
+  // The ceiling of bodies, rotated to hang over the hall's axis.
+  const masses = kit.ceilingMasses(110, [24, 72], 18.5)
+  masses.rotation.y = Math.PI / 4
+  three.add(masses)
 
-  // The door, vast, at the far end.
+  // The door, vast, at the far end, facing back down the hall.
+  const doorPos = P(46, 0)
   const door = kit.door(7, 12)
-  door.position.set(0, 0, -30)
+  door.position.copy(doorPos)
+  door.rotation.y = Math.PI / 4
   three.add(door)
-  const frameL = new THREE.Mesh(new THREE.BoxGeometry(0.5, 13, 0.6), kit.MAT.gold)
-  frameL.position.set(-3.9, 6.5, -30)
-  const frameR = frameL.clone()
-  frameR.position.x = 3.9
+  const frameGeo = new THREE.BoxGeometry(0.5, 13, 0.6)
+  const frameL = new THREE.Mesh(frameGeo, kit.MAT.gold)
+  frameL.position.copy(P(46, -3.9, 6.5))
+  frameL.rotation.y = Math.PI / 4
+  const frameR = new THREE.Mesh(frameGeo, kit.MAT.gold)
+  frameR.position.copy(P(46, 3.9, 6.5))
+  frameR.rotation.y = Math.PI / 4
   const lintel = new THREE.Mesh(new THREE.BoxGeometry(8.6, 0.5, 0.6), kit.MAT.gold)
-  lintel.position.set(0, 12.8, -30)
+  lintel.position.copy(P(46, 0, 12.8))
+  lintel.rotation.y = Math.PI / 4
   three.add(frameL, frameR, lintel)
-  for (let x = -4; x <= 4; x++) grid.blockCircle(x, -30, 0.6)
+  for (let w = -4; w <= 4; w++) {
+    const b = P(46, w)
+    grid.blockCircle(b.x, b.z, 0.8)
+  }
 
   // The god-beam, from the tear in the ceiling to the threshold.
   const beam = kit.godBeam(19, 4.2)
-  beam.position.set(0, 9.5, -26)
+  beam.position.copy(P(41, 0, 9.5))
   three.add(beam)
+  let beamBaseOpacity = 0.16
   const beamGlow = new THREE.PointLight(0xe8dfc9, 26, 22, 1.9)
-  beamGlow.position.set(0, 6, -26)
+  beamGlow.position.copy(P(41, 0, 6))
   three.add(beamGlow)
 
   // Small human wreckage on the way down.
   const censer = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.7, 8), kit.MAT.gold)
   censer.rotation.z = Math.PI / 2
-  censer.position.set(-3.4, 0.35, 4)
+  censer.position.copy(P(9, -3.4, 0.35))
   three.add(censer)
 
   const chalkPile = new THREE.Group()
@@ -71,7 +95,7 @@ export function buildDoor(): GameScene {
     stub.rotation.z = Math.PI / 2 + i
     chalkPile.add(stub)
   }
-  chalkPile.position.set(2.8, 0, -8)
+  chalkPile.position.copy(P(22, 2.8))
   three.add(chalkPile)
 
   const details: DetailSpec[] = []
@@ -161,30 +185,44 @@ export function buildDoor(): GameScene {
       rigLights.dir.intensity = 3.6
       rigLights.hemi.intensity = 1.7
       three.fog = new THREE.Fog(0x131118, 60, 160)
-      ;(beam.material as THREE.MeshBasicMaterial).opacity = 0.34
+      beamBaseOpacity = 0.34
       beamGlow.intensity = 60
     } else {
       rigLights.dir.intensity = 1.3
-      ;(beam.material as THREE.MeshBasicMaterial).opacity = 0.1
+      beamBaseOpacity = 0.1
       beamGlow.intensity = 12
     }
   }
+
+  const spawnCell = grid.worldToCell(P(0, 0))
 
   return {
     id: 'door',
     three,
     grid,
-    spawnCell: { cx: 0, cz: 30 },
-    viewWidth: 26,
-    camBias: new THREE.Vector3(0, 0, -7),
+    spawnCell,
+    viewWidth: 14,
+    camBias: new THREE.Vector3().addScaledVector(AXIS_U, 6),
+    // The pullback: human-scale at the threshold, monumental at the door.
+    viewWidthAt(p: THREE.Vector3) {
+      const s = p.dot(AXIS_U)
+      const t = Math.min(1, Math.max(0, s / 38))
+      return 14 + t * 17
+    },
     details,
     anchors: new Map(),
     plainExamines,
-    waymark: new THREE.Vector3(0, 0.6, -25),
+    waymark: P(40, 0, 0.6),
     entryLine: 'This is the hall. I have kept it the size it felt, not the size it was. Come to the light.', // DRAFT
     quiz: { lie: false, mutation: false },
     weather: 0.18,
     finale: assemble,
     applyDetailState() {},
+    update(_dt: number, t: number) {
+      // Dither-sparkle inside the beam: cheap flicker, never still.
+      const m = beam.material as THREE.MeshBasicMaterial
+      const flicker = 0.02 * Math.sin(t * 9.7) + 0.015 * Math.sin(t * 23.3 + 1.7)
+      m.opacity = Math.max(0.05, beamBaseOpacity + flicker)
+    },
   }
 }

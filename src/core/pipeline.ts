@@ -262,11 +262,15 @@ export class Pipeline {
     return this.uniforms.uDissolve.value as number
   }
 
+  lastSceneStats = { calls: 0, triangles: 0 }
+
   render(scene: THREE.Scene, camera: THREE.Camera, t: number) {
     this.uniforms.uTime.value = t
     this.uiTexture.needsUpdate = true
     this.renderer.setRenderTarget(this.rt)
     this.renderer.render(scene, camera)
+    this.lastSceneStats.calls = this.renderer.info.render.calls
+    this.lastSceneStats.triangles = this.renderer.info.render.triangles
     this.renderer.setRenderTarget(null)
     this.renderer.render(this.postScene, this.postCam)
   }

@@ -18,3 +18,7 @@ One line each: decision + why + what to review.
 - **Personal (unverifiable) quiz details** in the Tower have `mutable: false` and no world anchor — the "record" is the only witness; only the beacon can truly mutate. Review: the doc implies this but doesn't say it.
 - **Ending endgame flow**: choice → per-ending scene lighting + atmosphere (accept = becalmed + brightened, keep = heavier baseline) → single thank-you line → 4.5s ink-out → title; tapping title after a finished run reloads the page for a clean second playthrough.
 - **Iso screen axes**: north (−z) projects up-RIGHT at az 45°; scene content is laid out along the screen diagonal (tower moved west) rather than world-north. Cameras get per-scene `camBias` to lead toward the scene's heart.
+- **The hall runs along the screen-up diagonal** so the whole walk reads vertically in portrait — lone figure, colonnade, beam, door, all in one axis. The pullback is dynamic: view width 14 → 31 as a function of progress down the hall (`viewWidthAt`).
+- **Waymark taps are distance-gated**: tapping the mark from afar walks you to it, then triggers. The mark is met, not commanded.
+- **Flourish gate keeps only the first sentence** of whatever the endpoint returns (length ≤160, no brackets/newlines) — the stub's multi-sentence canned lines get trimmed; that's the gate working, not a bug.
+- **Bundle is one chunk (~195KB gz)** — three.js dominates; fine for a load-once mobile vignette. Code-split only if Threads' browser balks.
