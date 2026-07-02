@@ -1,4 +1,16 @@
-# STATUS — overnight build (July 2, 2026)
+# STATUS
+
+## P2 pass (post-playtest, July 2)
+Addressing Maxim's first-playthrough notes:
+- **Legibility**: machine text 16px, captions 13px, brighter green, heavier plates, tap-to-hurry text (pinned questions only complete, never dismiss).
+- **Premise**: skippable cold open states the situation plainly over black (world ended, you were kept, the last day is being rebuilt); only the cause and the blame stay withheld.
+- **Goal clarity**: waymark now gates behind 2 examines (or 75s) and announces itself when it opens; post-quiz re-entry line invites you to look again; tapping the mark from afar walks you to it.
+- **Character**: fully articulated procedural figure — spring-lagged hem/sleeves, hood brim + cuff trims, counter-bobbing head with attention glances (soft guidance), lean/roll, idle breathing, footfall thuds + ash puffs.
+- **World**: ARCHIVIST bust waits at every mark and the render smears locally around it; dead trees + ruin skyline + dropped bundle (field); collapsed beam, banners, graves, rubble (chapel); dropped torches, rubble, dark windows (tower); pale floor runner, fallen columns, candle banks (hall); falling ash motes everywhere.
+- **Green hardening**: machine green requires the UI pixel itself to be green-dominant — pale UI over warm surfaces can no longer leak green into the world.
+- Verified: both ending playthroughs pass; draw calls 30/44/45/42 (<50); build 200KB gz. Tower/chapel are near budget — merge character parts if a future scene needs headroom.
+
+# Overnight build (July 2, 2026)
 
 **TL;DR: the complete skeleton is playable, start to both endings.** Title → Field → Chapel → Tower → Door → choice → outro → title. Every system from the scope doc is wired against real data. It is ugly in the places predicted (graybox dressing, DRAFT lines) and — I'd argue — already beautiful in the places that matter (the pipeline, the dissolve, the beam).
 

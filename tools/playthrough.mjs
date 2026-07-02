@@ -96,15 +96,42 @@ async function walkNearWaymark() {
   await page.waitForTimeout(5000)
 }
 
+// Examine an anchor/plain-examine by id. Taps may only approach while the
+// target is off-screen, so: tap, wait for the walk to finish, re-tap,
+// until the ledger records it (or we give up).
+async function examine(id) {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await page.evaluate((eid) => {
+      const g = window.__tkm.game
+      const a = g.scene.anchors.get(eid)
+      const obj = a ? a.object : g.scene.plainExamines.find((p) => p.id === eid)?.object
+      const b = new window.__tkm.THREE.Box3().setFromObject(obj)
+      const c = b.getCenter(new window.__tkm.THREE.Vector3())
+      window.__tkm.tapWorld(c.x, c.y, c.z)
+    }, id)
+    for (let i = 0; i < 30; i++) {
+      await page.waitForTimeout(500)
+      if (!(await page.evaluate(() => window.__tkm.game.player.moving))) break
+    }
+    await page.waitForTimeout(600)
+    const done = await page.evaluate(
+      (eid) => window.__tkm.ledger.examines.some((e) => e.targetId === eid),
+      id
+    )
+    if (done) return
+  }
+  console.error('examine never registered:', id)
+}
+
 // --- begin ---
 await page.mouse.click(195, 420)
-await waitForState('explore')
+await waitForState('explore', 90000) // cold open self-advances
 console.log('FIELD entered')
 await page.waitForTimeout(1500)
 
-// Field: look at a couple of things, then quiz.
-await tapWorld(3.5, 1.0, 2.5) // torch
-await page.waitForTimeout(4500)
+// Field: the waymark gate wants two examines.
+await examine('field-torch')
+await examine('field-prints')
 await walkNearWaymark()
 await waymark()
 await waitForState('quiz', 30000)
@@ -119,20 +146,8 @@ console.log('CHAPEL entered')
 await page.screenshot({ path: `shots/pt-${MODE}-chapel.png` })
 
 // Chapel: examine the glyph wall (needed knowledge) and the mark.
-await page.evaluate(() => {
-  const pe = window.__tkm.game.scene.plainExamines.find((p) => p.id === 'chapel-glyphs')
-  const b = new window.__tkm.THREE.Box3().setFromObject(pe.object)
-  const c = b.getCenter(new window.__tkm.THREE.Vector3())
-  window.__tkm.tapWorld(c.x, c.y, c.z)
-})
-await page.waitForTimeout(6000)
-await page.evaluate(() => {
-  const pe = window.__tkm.game.scene.plainExamines.find((p) => p.id === 'chapel-mark')
-  const b = new window.__tkm.THREE.Box3().setFromObject(pe.object)
-  const c = b.getCenter(new window.__tkm.THREE.Vector3())
-  window.__tkm.tapWorld(c.x, c.y, c.z)
-})
-await page.waitForTimeout(6000)
+await examine('chapel-glyphs')
+await examine('chapel-mark')
 await walkNearWaymark()
 await waymark()
 await waitForState('quiz', 30000)
