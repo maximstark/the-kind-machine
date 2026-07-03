@@ -6,19 +6,35 @@ import { atmosphere } from '../core/atmosphere'
 // The context unlocks on the first tap (title screen = "begin").
 
 // Machine voice treatments, A/B-selectable via ?voice= until one is chosen:
-//   grain    — shipped default: randomized noise grain per character
+//   grain    — shipped default: randomized noise grain per character (typewriter)
 //   reed     — the grain with all randomness removed; regularity reads mechanical
 //   liturgy  — characters chant a fixed Am9 cycle, punctuation lands on the root
 //   presence — reed tick + a breathing band-noise/beating-dyad bed while it speaks
 //   choir    — liturgy tick + the presence bed
-export type VoiceMode = 'grain' | 'reed' | 'liturgy' | 'presence' | 'choir'
-const VOICE_MODES: VoiceMode[] = ['grain', 'reed', 'liturgy', 'presence', 'choir']
+//   vox      — voice-like: wordless formant babble that follows the line's vowels,
+//              monotone pitch, falling inflection at punctuation (no words, no VO)
+//   hum      — voice-like: a sustained vowel hum that morphs while text reveals,
+//              with the quiet reed tick typing over it
+export type VoiceMode = 'grain' | 'reed' | 'liturgy' | 'presence' | 'choir' | 'vox' | 'hum'
+const VOICE_MODES: VoiceMode[] = ['grain', 'reed', 'liturgy', 'presence', 'choir', 'vox', 'hum']
 
 // Am9 chord tones (the drone sits at ~A1); the cycle resets each line so
 // every sentence chants the same rising figure. Deliberately deterministic.
 const LITURGY_FREQS = [220, 261.63, 329.63, 392, 493.88]
 const LITURGY_ROOT = 110
 const PUNCT = /[.,;:—?!…]/
+
+// Rough F1/F2 formant pairs. The dark rounded vowels carry "calm";
+// consonants collapse toward a closed 'u' so the babble never gets sharp.
+const FORMANTS: Record<string, [number, number]> = {
+  a: [780, 1150],
+  e: [420, 1900],
+  i: [360, 2100],
+  o: [420, 820],
+  u: [330, 640],
+}
+const VOWEL_WALK: [number, number][] = [FORMANTS.o, FORMANTS.a, FORMANTS.u, FORMANTS.e, FORMANTS.o]
+const VOX_PITCH = 110 // monotone, the drone's root two octaves up — flat = machine
 
 class Sound {
   private ctx: AudioContext | null = null
@@ -28,7 +44,14 @@ class Sound {
   private started = false
   private voiceMode: VoiceMode = 'grain'
   private liturgyStep = 0
+  private voxStep = 0
   private bedGain: GainNode | null = null
+  private humGain: GainNode | null = null
+  private humF1: BiquadFilterNode | null = null
+  private humF2: BiquadFilterNode | null = null
+  private humActive = false
+  private humNextVowelAt = 0
+  private humVowelStep = 0
 
   unlock() {
     if (this.started) return
@@ -151,6 +174,42 @@ class Sound {
       o.start()
     }
 
+    // --- hum voice: two barely-detuned saws through a slowly morphing
+    // vowel (two formant bandpasses), silent until a line reveals ---
+    const humGain = ctx.createGain()
+    humGain.gain.value = 0
+    humGain.connect(master)
+    this.humGain = humGain
+    const humF1 = ctx.createBiquadFilter()
+    humF1.type = 'bandpass'
+    humF1.frequency.value = FORMANTS.o[0]
+    humF1.Q.value = 6
+    const humF2 = ctx.createBiquadFilter()
+    humF2.type = 'bandpass'
+    humF2.frequency.value = FORMANTS.o[1]
+    humF2.Q.value = 8
+    this.humF1 = humF1
+    this.humF2 = humF2
+    const humF1Gain = ctx.createGain()
+    humF1Gain.gain.value = 1.0
+    const humF2Gain = ctx.createGain()
+    humF2Gain.gain.value = 0.45
+    humF1.connect(humF1Gain)
+    humF2.connect(humF2Gain)
+    humF1Gain.connect(humGain)
+    humF2Gain.connect(humGain)
+    for (const f of [VOX_PITCH, VOX_PITCH + 0.6]) {
+      const o = ctx.createOscillator()
+      o.type = 'sawtooth'
+      o.frequency.value = f
+      const g = ctx.createGain()
+      g.gain.value = 0.5
+      o.connect(g)
+      g.connect(humF1)
+      g.connect(humF2)
+      o.start()
+    }
+
     document.addEventListener('visibilitychange', () => {
       if (!this.ctx) return
       if (document.hidden) this.ctx.suspend()
@@ -167,13 +226,54 @@ class Sound {
     const ctx = this.ctx
     if (!ctx || !this.master || !this.tickBuf) return
     const mode = this.voiceMode
+    if (mode === 'vox') {
+      // Wordless formant babble. Vowels in the actual text pick the mouth
+      // shape; consonants collapse to a closed dark blip; punctuation gets
+      // a longer falling "mm". Monotone pitch — the flatness is the machine.
+      const punct = !!ch && PUNCT.test(ch)
+      if (!punct && this.voxStep++ % 2 !== 0) return // syllable rate, not char rate
+      const vowel = ch && FORMANTS[ch.toLowerCase()]
+      const [f1, f2] = punct ? FORMANTS.o : vowel || [340, 700]
+      const dur = punct ? 0.26 : vowel ? 0.1 : 0.06
+      const level = punct ? 0.5 : vowel ? 0.45 : 0.3
+      const o = ctx.createOscillator()
+      o.type = 'sawtooth'
+      o.frequency.setValueAtTime(VOX_PITCH, ctx.currentTime)
+      if (punct) o.frequency.exponentialRampToValueAtTime(94, ctx.currentTime + dur)
+      const b1 = ctx.createBiquadFilter()
+      b1.type = 'bandpass'
+      b1.frequency.value = f1
+      b1.Q.value = 7
+      const b2 = ctx.createBiquadFilter()
+      b2.type = 'bandpass'
+      b2.frequency.value = f2
+      b2.Q.value = 9
+      const g1 = ctx.createGain()
+      g1.gain.value = 1.0
+      const g2 = ctx.createGain()
+      g2.gain.value = 0.4
+      const env = ctx.createGain()
+      env.gain.setValueAtTime(0.0001, ctx.currentTime)
+      env.gain.exponentialRampToValueAtTime(level, ctx.currentTime + 0.012)
+      env.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur)
+      o.connect(b1)
+      o.connect(b2)
+      b1.connect(g1)
+      b2.connect(g2)
+      g1.connect(env)
+      g2.connect(env)
+      env.connect(this.master)
+      o.start()
+      o.stop(ctx.currentTime + dur + 0.05)
+      return
+    }
     if (mode === 'liturgy' || mode === 'choir') {
       // Pitched chant blip: deterministic walk up the chord, punctuation
       // settles on the root an octave down.
       const punct = !!ch && PUNCT.test(ch)
       const freq = punct ? LITURGY_ROOT : LITURGY_FREQS[this.liturgyStep++ % LITURGY_FREQS.length]
       const dur = punct ? 0.4 : 0.12
-      const level = punct ? 0.1 : 0.07
+      const level = punct ? 0.16 : 0.11
       const o = ctx.createOscillator()
       o.type = 'sine'
       o.frequency.value = freq
@@ -187,8 +287,9 @@ class Sound {
       o.stop(ctx.currentTime + dur + 0.05)
       return
     }
-    // Grain family. 'reed'/'presence' strip every random parameter — the
-    // same sound at the same interval is what reads as machine.
+    // Grain family ('hum' keeps a quiet typing tick under its voice).
+    // 'reed'/'presence'/'hum' strip every random parameter — the same
+    // sound at the same interval is what reads as machine.
     const fixed = mode !== 'grain'
     const src = ctx.createBufferSource()
     src.buffer = this.tickBuf
@@ -198,25 +299,35 @@ class Sound {
     bp.frequency.value = fixed ? 2150 : 1900 + Math.random() * 500
     bp.Q.value = fixed ? 9 : 7
     const g = ctx.createGain()
-    g.gain.value = mode === 'presence' ? 0.34 : fixed ? 0.42 : 0.5
+    g.gain.value = mode === 'presence' ? 0.34 : mode === 'hum' ? 0.22 : fixed ? 0.42 : 0.5
     src.connect(bp)
     bp.connect(g)
     g.connect(this.master)
     src.start()
   }
 
-  // The bed fades in while the machine is revealing text, out when it stops.
+  // Beds fade in while the machine is revealing text, out when it stops.
   voiceLineStart() {
     this.liturgyStep = 0
-    if (!this.ctx || !this.bedGain) return
-    if (this.voiceMode === 'presence' || this.voiceMode === 'choir') {
-      this.bedGain.gain.setTargetAtTime(0.09, this.ctx.currentTime, 0.12)
+    this.voxStep = 0
+    if (!this.ctx) return
+    if (this.bedGain && (this.voiceMode === 'presence' || this.voiceMode === 'choir')) {
+      this.bedGain.gain.setTargetAtTime(0.14, this.ctx.currentTime, 0.12)
+    }
+    if (this.humGain && this.voiceMode === 'hum') {
+      this.humActive = true
+      this.humNextVowelAt = this.ctx.currentTime + 0.55
+      this.humGain.gain.setTargetAtTime(0.3, this.ctx.currentTime, 0.18)
     }
   }
 
   voiceLineEnd() {
-    if (!this.ctx || !this.bedGain) return
-    this.bedGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.35)
+    if (!this.ctx) return
+    this.bedGain?.gain.setTargetAtTime(0, this.ctx.currentTime, 0.35)
+    if (this.humGain) {
+      this.humActive = false
+      this.humGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.4)
+    }
   }
 
   // Footfall on ash: a soft, low, brief thud.
@@ -277,11 +388,17 @@ class Sound {
     src.start()
   }
 
-  // The drone darkens with the weather.
+  // The drone darkens with the weather; the hum walks its vowel while speaking.
   update() {
     if (!this.droneFilter || !this.ctx) return
     const target = 200 + atmosphere.amplitude * 420
     this.droneFilter.frequency.setTargetAtTime(target, this.ctx.currentTime, 0.6)
+    if (this.humActive && this.humF1 && this.humF2 && this.ctx.currentTime >= this.humNextVowelAt) {
+      this.humNextVowelAt = this.ctx.currentTime + 0.55
+      const [f1, f2] = VOWEL_WALK[++this.humVowelStep % VOWEL_WALK.length]
+      this.humF1.frequency.setTargetAtTime(f1, this.ctx.currentTime, 0.22)
+      this.humF2.frequency.setTargetAtTime(f2, this.ctx.currentTime, 0.22)
+    }
   }
 }
 

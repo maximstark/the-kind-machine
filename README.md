@@ -29,8 +29,9 @@ npm run shot       # headless screenshot (requires Chrome)
 node tools/playthrough.mjs keep|accept   # automated full playthrough to either ending
 ```
 
-Machine-voice audio A/B: append `?voice=reed|liturgy|presence|choir` to any URL
-(default is the shipped grain). Switch live from devtools with `__voice('choir')`.
+Machine-voice audio A/B: append `?voice=reed|liturgy|presence|choir|vox|hum` to any
+URL (default is the shipped grain; `vox`/`hum` are the voice-like ones). Switch live
+from devtools with `__voice('vox')`.
 
 Vite + TypeScript + Three.js, no framework. The renderer draws to a 360px target and upscales through a single composite pass (4×4 Bayer dither, 5-color palette). All UI is drawn inside that pipeline. The AI flourish endpoint is stubbed in dev; the real proxy lives in `proxy/` and deploys separately — no API key ever ships in the client.
 
