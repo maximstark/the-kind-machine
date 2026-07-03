@@ -207,7 +207,7 @@ export function buildChapel(): GameScene {
     {
       id: 'chapel-glyphs',
       object: glyphGroup,
-      caption: 'Four shapes, carved with care: the circle, the cross, the wave, the eye.', // DRAFT
+      caption: 'Four shapes carved in a row. First the circle. Then the cross. Then the wave. Last, the eye.', // DRAFT
     },
   ]
 

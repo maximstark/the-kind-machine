@@ -87,6 +87,11 @@ export const SCRIPT = {
     'This is all of it. All I kept. Shall we go on?', // DRAFT
   ],
 
+  stayAWhile: [
+    'Then look. I am not in a hurry. Nothing here is.', // DRAFT
+    'Take your time. The mark will wait. It is good at waiting.', // DRAFT
+  ],
+
   // Spoken on re-entry, after the quiz redraws the scene.
   reentryLook: [
     'It stands as we agreed it now. Look again, if you doubt me. Then come back to the mark, and we will go on.', // DRAFT
@@ -106,10 +111,12 @@ export function pick(list: readonly string[]): string {
 }
 
 // Card labels are Capitalized for display; mid-sentence interpolation
-// lowercases them so "I have {claim}" reads naturally.
+// lowercases them so "I have {claim}" reads naturally — then sentence
+// starts are re-capitalized.
 export function fill(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{(\w+)\}/g, (_, k) => {
+  const out = template.replace(/\{(\w+)\}/g, (_, k) => {
     const v = vars[k] ?? ''
     return v.charAt(0).toLowerCase() + v.slice(1)
   })
+  return out.replace(/(^|[.!?]\s+)([a-z])/g, (_, pre, ch) => pre + ch.toUpperCase())
 }

@@ -126,9 +126,11 @@ export class QuizController {
       }
     }
 
-    // Clear the standing question, then respond.
+    // Clear the standing question, then respond — below the cards, so the
+    // reply never sits on top of the answers.
     voice.clear()
     voice.say(line, {
+      yFrac: 0.84,
       onDone: () => {
         this.index++
         this.askNext()
@@ -139,6 +141,7 @@ export class QuizController {
   private finish() {
     this.phase = 'done'
     voice.say(pick(SCRIPT.postQuiz[trust.band]), {
+      yFrac: 0.84,
       onDone: () => this.onComplete?.(),
     })
   }

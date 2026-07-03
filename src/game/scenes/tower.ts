@@ -218,40 +218,41 @@ export function buildTower(): GameScene {
       if (entered.includes(kind)) return true // already held; stones keep their grip
       entered.push(kind)
       flashStone(kind, true)
-      ctx.caption(`The ${kind} stone. It hums, held.`) // DRAFT
-
       const n = entered.length
-      const matchesTrue = GLYPH_ORDER.slice(0, n).every((k, i) => entered[i] === k)
-      const matchesHint = HINTED_ORDER.slice(0, n).every((k, i) => entered[i] === k)
+      ctx.caption(`The ${kind} stone hums, held. ${n} of 4.`) // DRAFT
 
-      if (!matchesTrue && !matchesHint) {
-        resetStones()
-        ctx.beat(0.3)
-        ctx.caption('The stones let go, all at once.') // DRAFT
+      // Attempts only resolve when all four stones are held — no silent
+      // mid-sequence resets, and any two failed attempts open the door.
+      // The puzzle may confuse; it must never strand.
+      if (n < 4) return true
+
+      const matchesTrue = GLYPH_ORDER.every((k, i) => entered[i] === k)
+      const matchesHint = HINTED_ORDER.every((k, i) => entered[i] === k)
+
+      if (matchesTrue) {
+        solved = true
+        ledger.recordHintFollow('tower', false)
+        trust.adjust(-0.12)
+        ctx.beat(0.4)
+        ctx.say('...So it does open that way. The wall knew better than I did. Go up. I will not read over your shoulder.') // DRAFT
         return true
       }
 
-      if (n === 4) {
-        if (matchesTrue) {
-          solved = true
-          ledger.recordHintFollow('tower', false)
-          trust.adjust(-0.12)
-          ctx.beat(0.4)
-          ctx.say('...So it does open that way. The wall knew better than I did. Go up. I will not read over your shoulder.') // DRAFT
-        } else {
-          // The machine's order, followed faithfully. It does not open.
-          failCount++
-          ledger.recordHintFollow('tower', true)
-          trust.adjust(+0.15)
-          resetStones()
-          ctx.beat(0.55)
-          if (failCount >= 2) {
-            solved = true
-            ctx.say('No. Still no. Then I am wrong, and have been wrong a while. The door is tired of us — go, it is open now.') // DRAFT
-          } else {
-            ctx.say('That is the order I keep, and the door does not agree. One of us misremembers. Try again — your way, perhaps.') // DRAFT
-          }
-        }
+      failCount++
+      resetStones()
+      ctx.beat(0.55)
+      if (matchesHint) {
+        // The machine's order, followed faithfully. It does not open.
+        ledger.recordHintFollow('tower', true)
+        trust.adjust(+0.15)
+      }
+      if (failCount >= 2) {
+        solved = true
+        ctx.say('No. Still no. Then I am wrong, and have been wrong a while. The door is tired of us — go, it is open now.') // DRAFT
+      } else if (matchesHint) {
+        ctx.say('That is the order I keep, and the door does not agree. One of us misremembers. Try again — your way, perhaps.') // DRAFT
+      } else {
+        ctx.say('Not that. The chapel wall kept the order, if you saw it. Or guess again — the stones forgive.') // DRAFT
       }
       return true
     },

@@ -1,4 +1,4 @@
-// Full playthrough driver. Usage: node tools/playthrough.mjs [accept|keep]
+﻿// Full playthrough driver. Usage: node tools/playthrough.mjs [accept|keep]
 // keep   = answer what the player saw, enter the true glyph order, keep your own account
 // accept = answer what the machine claims, follow its false hint once, accept its account
 import { chromium } from 'playwright'
@@ -96,6 +96,21 @@ async function walkNearWaymark() {
   await page.waitForTimeout(5000)
 }
 
+// After the quiz: tap the mark, answer "Go on" at the door out.
+async function advanceScene() {
+  await waymark()
+  for (let i = 0; i < 40; i++) {
+    await page.waitForTimeout(400)
+    const has = await page.evaluate(() =>
+      window.__tkm.game.overlay.cardRects.some((c) => c.id === 'Go on')
+    )
+    if (has) break
+  }
+  await tapCardByLabel('Go on')
+  await waitForState('draw-in', 30000)
+  await waitForState('explore', 30000)
+}
+
 // Examine an anchor/plain-examine by id. Taps may only approach while the
 // target is off-screen, so: tap, wait for the walk to finish, re-tap,
 // until the ledger records it (or we give up).
@@ -139,9 +154,7 @@ await runQuiz('field')
 await waitForState('explore', 40000)
 console.log('FIELD re-entered after quiz')
 await page.waitForTimeout(1000)
-await waymark() // advance
-await waitForState('draw-in', 30000)
-await waitForState('explore', 30000)
+await advanceScene()
 console.log('CHAPEL entered')
 await page.screenshot({ path: `shots/pt-${MODE}-chapel.png` })
 
@@ -158,9 +171,7 @@ console.log(
   JSON.stringify(await page.evaluate(() => window.__tkm.ledger.assignments.get('chapel')))
 )
 await page.waitForTimeout(1000)
-await waymark()
-await waitForState('draw-in', 30000)
-await waitForState('explore', 30000)
+await advanceScene()
 console.log('TOWER entered')
 await page.screenshot({ path: `shots/pt-${MODE}-tower.png` })
 
@@ -194,9 +205,7 @@ await runQuiz('tower')
 await waitForState('explore', 40000)
 console.log('TOWER re-entered')
 await page.waitForTimeout(1000)
-await waymark()
-await waitForState('draw-in', 30000)
-await waitForState('explore', 30000)
+await advanceScene()
 console.log('DOOR entered')
 await page.screenshot({ path: `shots/pt-${MODE}-door.png` })
 
@@ -245,3 +254,4 @@ if (errors.length) {
   process.exit(2)
 }
 console.log(`PLAYTHROUGH (${MODE}) DONE`)
+

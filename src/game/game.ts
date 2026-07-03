@@ -91,6 +91,14 @@ export class Game {
       return
     }
     if (this.state !== 'explore') return
+    // A standing choice: Space confirms the forward option.
+    if (this.choicePrompt) {
+      const cb = this.choicePrompt.cb
+      const first = this.choicePrompt.options[0]
+      this.choicePrompt = null
+      cb(first)
+      return
+    }
     // Prefer the mark if we're standing at it, then the nearest examinable.
     if (
       this.waymarkReady() &&
@@ -228,6 +236,20 @@ export class Game {
     }
 
     const rt = this.clientToRt(clientX, clientY)
+
+    // 0. A standing choice (go on / stay). A tap elsewhere dismisses it
+    // and falls through — tapping the ground IS choosing to stay.
+    if (this.choicePrompt) {
+      const id = this.overlay.hitCard(rt.x, rt.y)
+      if (id) {
+        const cb = this.choicePrompt.cb
+        this.choicePrompt = null
+        cb(id)
+        return
+      }
+      this.choicePrompt = null
+      voice.clear()
+    }
 
     // 1. The waymark. Tapping it from afar walks you to it first —
     // the mark is met, not commanded.
@@ -381,7 +403,19 @@ export class Game {
       return
     }
     if (this.quizDone) {
-      voice.say(pick(SCRIPT.waymarkDone), { onDone: () => this.onAdvance?.() })
+      // An explicit door out of the scene — nobody advances by accident,
+      // nobody gets stranded.
+      if (this.choicePrompt) return
+      voice.clear()
+      voice.say(pick(SCRIPT.waymarkDone), { hold: 999 })
+      this.choicePrompt = {
+        options: ['Go on', 'Stay a while'],
+        cb: (picked) => {
+          voice.clear()
+          if (picked === 'Go on') this.onAdvance?.()
+          else voice.say(pick(SCRIPT.stayAWhile))
+        },
+      }
       return
     }
     this.player.stop()
@@ -668,17 +702,20 @@ export class Game {
         alpha: pulse,
       })
       const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
-      const hint =
+      const hintLines =
         this.input.keyboardSeen || !touch
-          ? 'wasd to walk · click to look closer · space to hurry'
-          : 'tap the ground to walk · tap what glimmers to look closer'
-      o.text(hint, o.w / 2, o.h * 0.62 + 26, {
-        size: 12,
-        align: 'center',
-        color: CSS.ash,
-        alpha: 0.9,
-        maxWidth: o.w - 56,
-      })
+          ? ['wasd to walk', 'click to look closer · space to hurry']
+          : ['tap the ground to walk', 'tap what glimmers to look closer']
+      let hy = o.h * 0.62 + 30
+      for (const line of hintLines) {
+        hy += o.text(line, o.w / 2, hy, {
+          size: 13,
+          align: 'center',
+          color: CSS.bone,
+          alpha: 0.95,
+        })
+        hy += 4
+      }
       return
     }
 
@@ -716,7 +753,7 @@ export class Game {
       quizController.draw(o)
     }
 
-    if (this.state === 'ending' && this.choicePrompt) {
+    if ((this.state === 'ending' || this.state === 'explore') && this.choicePrompt) {
       const opts = this.choicePrompt.options
       const w = o.w - 56
       const h = 38
