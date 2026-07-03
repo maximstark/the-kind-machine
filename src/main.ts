@@ -58,10 +58,8 @@ document.addEventListener('visibilitychange', () => {
   // Tap a world position by projecting it to screen space first.
   tapWorld(x: number, y: number, z: number) {
     const p = game.worldToRt(new THREE.Vector3(x, y, z))
-    ;(game as any).handleTap(
-      (p.x / game.pipeline.rtWidth) * window.innerWidth,
-      (p.y / game.pipeline.rtHeight) * window.innerHeight
-    )
+    const c = game.pipeline.rtToClient(p.x, p.y)
+    ;(game as any).handleTap(c.x, c.y)
   },
   // Debug: jump directly to a scene by id.
   jumpTo(id: string) {

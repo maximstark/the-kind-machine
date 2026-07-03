@@ -10,10 +10,14 @@ An 8–12 minute isometric psychological horror vignette for the phone in your h
 
 ## How to play
 
+**On a phone (the intended way):**
 - **Tap the ground** to walk.
 - **Tap things that glimmer** to look at them. Look carefully.
 - **Tap the green mark** when you're ready to remember together.
-- Answer honestly. Or don't.
+
+**On a desktop:** WASD / arrow keys to walk, click to look closer, Space to hurry the text. The game keeps its portrait frame; it was composed for a hand.
+
+Answer honestly. Or don't.
 
 ## Development
 

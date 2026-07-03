@@ -164,12 +164,10 @@ export class Overlay {
     this.cardRects.push({ id, x, y, w, h })
   }
 
-  // Map a screen-space pointer position to an overlay card id, if any.
-  hitCard(clientX: number, clientY: number): string | null {
-    const sx = (clientX / window.innerWidth) * this.w
-    const sy = (clientY / window.innerHeight) * this.h
+  // Map a render-target-space point to an overlay card id, if any.
+  hitCard(rtX: number, rtY: number): string | null {
     for (const r of this.cardRects) {
-      if (sx >= r.x && sx <= r.x + r.w && sy >= r.y && sy <= r.y + r.h) return r.id
+      if (rtX >= r.x && rtX <= r.x + r.w && rtY >= r.y && rtY <= r.y + r.h) return r.id
     }
     return null
   }

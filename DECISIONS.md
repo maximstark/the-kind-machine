@@ -2,6 +2,14 @@
 
 One line each: decision + why + what to review.
 
+## P2 pass
+- **Character is code-animated primitives, not imported assets.** At 360px, silhouette + motion (springs, lag, weight) beat mesh detail; no Blender dependency; a modeled mesh can drop into the same hierarchy later. Review: walk feel on your phone — tuning constants live at the top of character.ts.
+- **Cold open states the situation, withholds only cause and blame.** The scope doc forbids stating the theme, not the premise; the logline itself is player-facing. Review: the five coldOpen lines in script.ts.
+- **Waymark gate = 2 examines or 75s**, announced when it opens; taps from afar walk you to it. Gives the observe phase a shape without a tutorial popup. Review: gate thresholds.
+- **ARCHIVIST locus**: bust at every mark + a screen-space smear radius around it in the composite pass — reality least stable where the machine is most present. The hall keeps the beam as the locus instead. Review: bust silhouette (placeholder for your §7c avatar).
+- **Green quantization now requires the UI pixel to be green-dominant** — translucent bone UI over warm surfaces was leaking machine-green into the world.
+- **Attention system doubles as guidance**: the character glances at the nearest examinable (and the mark once it's lit). Subtle, diegetic, no UI.
+
 - **Local git only, no remote.** Commit-early rule needs a repo; no remote was specified. Review: push target.
 - **Flourish stub = Vite dev middleware at `/api/flourish`.** Keeps `npm run dev` one command while matching the real proxy's HTTP contract exactly; `proxy/` holds the unwired Hono skeleton. Review: contract shape before real integration.
 - **All UI drawn in-pipeline** (2D canvas at RT resolution, composited in the post shader pre-quantization). Text, cards, captions all inherit the dither/palette and can be smeared by the corruption layer; machine green is shader-gated to UI pixels only, so it can never appear in the world. Review: text legibility on a real phone.

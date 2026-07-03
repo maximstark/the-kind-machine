@@ -7,6 +7,7 @@ import { atmosphere } from '../core/atmosphere'
 import { bus } from '../core/bus'
 import { CSS } from '../core/palette'
 import { ledger } from './ledger'
+import { trust } from './trust'
 import { Player } from './player'
 import { Grid } from './grid'
 import { voice } from './machine'
@@ -26,6 +27,7 @@ export type GameState =
   | 'dissolve-in'
   | 'ending'
   | 'outro'
+  | 'epitaph'
 
 const CAPTION_SECONDS = 3.8
 const EXAMINE_RANGE = 2.4
@@ -52,6 +54,7 @@ export class Game {
   private choicePrompt: { options: string[]; cb: (picked: string) => void } | null = null
   private outroT = 0
   private finished = false
+  private endingKind: 'accept' | 'keep' | null = null
   // Flourish slots waiting to speak, oldest first.
   private slotQueue: { id: string; notBefore: number; fallback: boolean }[] = []
   // Called when the player leaves through the waymark after the quiz.
@@ -67,7 +70,55 @@ export class Game {
     this.pipeline.onResize = (w, h) => this.rig.setAspect(w / h)
     this.player = new Player(new Grid(2, 2), { cx: 0, cz: 0 })
     this.input.onTap = (x, y) => this.handleTap(x, y)
+    this.input.onAction = () => this.handleAction()
     this.pipeline.dissolve = 1
+  }
+
+  // Space / Enter / E: begin, hurry text, examine what's near, meet the mark.
+  private handleAction() {
+    if (this.state === 'title') {
+      if (this.finished || this.state !== 'title') return
+      bus.emit('game:begin')
+      this.beginColdOpen()
+      return
+    }
+    if (this.state === 'epitaph') {
+      location.reload()
+      return
+    }
+    if (this.state === 'cold-open' || this.state === 'quiz' || this.state === 'ending') {
+      voice.skip()
+      return
+    }
+    if (this.state !== 'explore') return
+    // Prefer the mark if we're standing at it, then the nearest examinable.
+    if (
+      this.waymarkReady() &&
+      this.player.object.position.distanceTo(this.scene.waymark) < 3.4
+    ) {
+      this.onWaymarkTap()
+      return
+    }
+    const pos = this.player.object.position
+    let best: string | null = null
+    let bestD = EXAMINE_RANGE + 0.8
+    for (const [id, a] of this.scene.anchors) {
+      if (!a.examinable) continue
+      const d = pos.distanceTo(a.object.position)
+      if (d < bestD) {
+        bestD = d
+        best = id
+      }
+    }
+    for (const pe of this.scene.plainExamines) {
+      const d = pos.distanceTo(pe.object.position)
+      if (d < bestD) {
+        bestD = d
+        best = pe.id
+      }
+    }
+    if (best) this.doExamine(best)
+    else voice.skip()
   }
 
   loadScene(scene: GameScene) {
@@ -104,7 +155,8 @@ export class Game {
   // --- coordinate helpers ---
 
   private clientToNdc(x: number, y: number) {
-    return new THREE.Vector2((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1)
+    const p = this.pipeline.clientToNdc(x, y)
+    return new THREE.Vector2(p.x, p.y)
   }
 
   worldToRt(v: THREE.Vector3): { x: number; y: number; visible: boolean } {
@@ -117,10 +169,7 @@ export class Game {
   }
 
   private clientToRt(x: number, y: number) {
-    return {
-      x: (x / window.innerWidth) * this.pipeline.rtWidth,
-      y: (y / window.innerHeight) * this.pipeline.rtHeight,
-    }
+    return this.pipeline.clientToRt(x, y)
   }
 
   private groundPoint(clientX: number, clientY: number): THREE.Vector3 | null {
@@ -149,13 +198,19 @@ export class Game {
       voice.skip()
       return
     }
+    if (this.state === 'epitaph') {
+      location.reload()
+      return
+    }
     if (this.state === 'quiz') {
-      if (!quizController.handleTap(this.overlay, clientX, clientY)) voice.skip()
+      const rtq = this.clientToRt(clientX, clientY)
+      if (!quizController.handleTap(this.overlay, rtq.x, rtq.y)) voice.skip()
       return
     }
     if (this.state === 'ending') {
       if (this.choicePrompt) {
-        const id = this.overlay.hitCard(clientX, clientY)
+        const rte = this.clientToRt(clientX, clientY)
+        const id = this.overlay.hitCard(rte.x, rte.y)
         if (id) {
           const cb = this.choicePrompt.cb
           this.choicePrompt = null
@@ -336,6 +391,35 @@ export class Game {
     this.setState('dissolve-out')
   }
 
+  // Held keys walk the figure cell by cell toward the desired heading.
+  // Diagonal headings tie between the two axes; alternating the axis each
+  // step produces the natural staircase.
+  private lastKeyAxis: 'x' | 'z' = 'x'
+
+  private updateKeyboardWalk() {
+    const want = this.input.heldDirection()
+    if (!want || this.player.moving) return
+    this.queuedExamine = null
+    this.player.onArrive = null
+    let best: { cx: number; cz: number; axis: 'x' | 'z' } | null = null
+    let bestScore = 0.3 // require some agreement with the held heading
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const cx = this.player.cell.cx + dx
+      const cz = this.player.cell.cz + dz
+      if (!this.scene.grid.isWalkable(cx, cz)) continue
+      const axis: 'x' | 'z' = dx !== 0 ? 'x' : 'z'
+      const score = dx * want.x + dz * want.z + (axis !== this.lastKeyAxis ? 0.05 : 0)
+      if (score > bestScore) {
+        bestScore = score
+        best = { cx, cz, axis }
+      }
+    }
+    if (best) {
+      this.lastKeyAxis = best.axis
+      this.player.walkTo({ cx: best.cx, cz: best.cz })
+    }
+  }
+
   // The figure glances at whatever is worth glancing at.
   private updateAttention() {
     const pos = this.player.object.position
@@ -400,6 +484,7 @@ export class Game {
 
   private endGame(kind: 'accept' | 'keep') {
     this.finished = true
+    this.endingKind = kind
     atmosphere.baseline = kind === 'accept' ? 0 : 0.3
     if (kind === 'accept') atmosphere.becalm()
     // One line before the ink runs out. Never confirmed, never explained.
@@ -502,10 +587,13 @@ export class Game {
       this.outroT += dt
       this.pipeline.dissolve = Math.min(1, this.outroT / 4.5)
       if (this.outroT > 6) {
-        this.setState('title')
+        this.setState('epitaph')
         this.pipeline.dissolve = 1
       }
     }
+
+    // The moment of choice fractures the render slightly.
+    this.pipeline.fringe = this.state === 'ending' && this.choicePrompt ? 3.2 : 1
 
     if (this.state === 'dissolve-in') {
       this.pipeline.dissolve = Math.max(0, 1 - this.stateT / 1.8)
@@ -518,6 +606,7 @@ export class Game {
     }
 
     if (this.state === 'explore') {
+      this.updateKeyboardWalk()
       this.player.update(dt, t)
       this.updateAttention()
       this.logSeen(dt)
@@ -573,11 +662,27 @@ export class Game {
       })
       const pulse = 0.5 + 0.4 * Math.sin(t * 2.2)
       o.text('touch the dark to begin', o.w / 2, o.h * 0.62, {
-        size: 11,
+        size: 12,
         align: 'center',
         color: CSS.ash,
         alpha: pulse,
       })
+      const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+      const hint =
+        this.input.keyboardSeen || !touch
+          ? 'wasd to walk · click to look closer · space to hurry'
+          : 'tap the ground to walk · tap what glimmers to look closer'
+      o.text(hint, o.w / 2, o.h * 0.62 + 22, {
+        size: 10,
+        align: 'center',
+        color: CSS.ash,
+        alpha: 0.55,
+      })
+      return
+    }
+
+    if (this.state === 'epitaph') {
+      this.drawEpitaph(o, t)
       return
     }
 
@@ -627,6 +732,98 @@ export class Game {
       if (t > this.caption.until) this.caption = null
       else o.caption(this.caption.text)
     }
+  }
+
+  // The ending card: the run's own ledger, set in stone. Built to be
+  // screenshotted — every player's card diverges from every other's.
+  private drawEpitaph(o: Overlay, t: number) {
+    o.fade(1)
+    const ctx = this.pipeline.uiCtx
+    const cx = o.w / 2
+    const kept = this.endingKind !== 'accept'
+    const accent = kept ? CSS.bone : CSS.gold
+
+    o.text('THE KIND MACHINE', cx, o.h * 0.12, {
+      font: FONT_MACHINE,
+      size: 20,
+      align: 'center',
+      color: CSS.bone,
+    })
+
+    // The sigil: the chalk circle. Crossed if you kept your own account;
+    // unbroken if you let the machine's stand.
+    const sy = o.h * 0.28
+    ctx.strokeStyle = accent
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.arc(cx, sy, 26, 0, Math.PI * 2)
+    ctx.stroke()
+    if (kept) {
+      ctx.beginPath()
+      ctx.moveTo(cx - 32, sy + 20)
+      ctx.lineTo(cx + 32, sy - 20)
+      ctx.stroke()
+      // Scratches: the record stayed contested.
+      ctx.globalAlpha = 0.4
+      for (let i = 0; i < 5; i++) {
+        const yy = sy - 30 + i * 14 + Math.sin(i * 7) * 3
+        ctx.fillStyle = CSS.ash
+        ctx.fillRect(cx - 52 + (i % 3) * 8, yy, 20 + (i % 2) * 14, 1.5)
+      }
+      ctx.globalAlpha = 1
+    }
+
+    const lines: string[] = []
+    lines.push(kept ? 'You kept your own account.' : 'You let its account stand.') // DRAFT
+    const lie = ledger.quiz.find((q) => q.role === 'lie')
+    if (lie) {
+      lines.push(
+        lie.agreedWithMachine
+          ? `You remember ${lie.machineClaim.toLowerCase()} now, the way it does.` // DRAFT
+          : `It says ${lie.machineClaim.toLowerCase()}. You still say ${lie.playerAnswer.toLowerCase()}.` // DRAFT
+      )
+    }
+    if (ledger.hintFollows.length) {
+      lines.push(
+        ledger.hintFollows.some((h) => h.followedMachine)
+          ? 'At the stones, you trusted its order over your eyes.' // DRAFT
+          : 'At the stones, you trusted your eyes.' // DRAFT
+      )
+    }
+    lines.push(
+      trust.band === 'deferent'
+        ? 'The archive remembers you fondly.' // DRAFT
+        : trust.band === 'defiant'
+          ? 'The archive remembers you arguing.' // DRAFT
+          : 'The archive remembers you, mostly.' // DRAFT
+    )
+
+    let y = o.h * 0.42
+    for (const line of lines) {
+      y += o.text(line, cx, y, {
+        font: FONT_MACHINE,
+        size: 14,
+        align: 'center',
+        color: CSS.green,
+        maxWidth: o.w - 60,
+      })
+      y += 10
+    }
+
+    o.text('maximstark.github.io/the-kind-machine', cx, o.h * 0.86, {
+      size: 10,
+      align: 'center',
+      color: CSS.ash,
+      alpha: 0.6,
+    })
+    const pulse = 0.4 + 0.35 * Math.sin(t * 2)
+    o.text('touch the dark to walk it again', cx, o.h * 0.92, {
+      // DRAFT
+      size: 11,
+      align: 'center',
+      color: CSS.ash,
+      alpha: pulse,
+    })
   }
 
   private drawPulse(v: THREE.Vector3, t: number, color: string) {

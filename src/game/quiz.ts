@@ -77,9 +77,9 @@ export class QuizController {
     return ledger.stateOf(detailId) // current truth: honest, and honest-about-shifts
   }
 
-  handleTap(overlay: Overlay, clientX: number, clientY: number): boolean {
+  handleTap(overlay: Overlay, rtX: number, rtY: number): boolean {
     if (this.phase !== 'cards') return false
-    const id = overlay.hitCard(clientX, clientY)
+    const id = overlay.hitCard(rtX, rtY)
     if (!id) return false
     this.answer(id)
     return true

@@ -21,6 +21,7 @@ uniform float uUIDisturb;
 uniform float uVignette;
 uniform vec2 uLocus;
 uniform float uLocusAmp;
+uniform float uFringe;
 uniform vec3 uPal[5];
 
 float hash21(vec2 p) {
@@ -76,8 +77,8 @@ void main() {
   vec2 duv = drift.xy;
   if (amt > 0.002) {
     vec3 s0 = texture2D(uScene, uv + duv).rgb;
-    vec3 s1 = texture2D(uScene, uv + duv * 1.7).rgb;
-    vec3 s2 = texture2D(uScene, uv + duv * 0.4).rgb;
+    vec3 s1 = texture2D(uScene, uv + duv * (1.0 + 0.7 * uFringe)).rgb;
+    vec3 s2 = texture2D(uScene, uv + duv * max(0.0, 1.0 - 0.6 * uFringe)).rgb;
     col = toDisplay(vec3(s1.r, s0.g, s2.b)) * (1.0 + drift.z);
   } else {
     col = toDisplay(texture2D(uScene, uv).rgb);
@@ -193,6 +194,7 @@ export class Pipeline {
       uVignette: { value: 0.5 },
       uLocus: { value: new THREE.Vector2(-999, -999) },
       uLocusAmp: { value: 0 },
+      uFringe: { value: 1 },
       uPal: { value: PALETTE.map((c) => new THREE.Vector3(c.r, c.g, c.b)) },
     }
 
@@ -213,10 +215,45 @@ export class Pipeline {
     window.addEventListener('resize', () => this.applySize())
   }
 
+  // The game is composed in portrait. On wide screens it letterboxes into
+  // a centered column rather than stretching the composition.
+  private cssW = 360
+  private cssH = 640
+
+  private computeCssBox() {
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    this.cssW = Math.min(vw, Math.round(vh * 0.62))
+    this.cssH = vh
+  }
+
   private computeRtHeight() {
-    const w = window.innerWidth
-    const h = window.innerHeight
-    return Math.max(64, Math.round((RT_WIDTH * h) / w))
+    return Math.max(64, Math.round((RT_WIDTH * this.cssH) / this.cssW))
+  }
+
+  // Map viewport client coords to render-target pixels (and back).
+  clientToRt(clientX: number, clientY: number) {
+    const r = this.renderer.domElement.getBoundingClientRect()
+    return {
+      x: ((clientX - r.left) / r.width) * this.rtWidth,
+      y: ((clientY - r.top) / r.height) * this.rtHeight,
+    }
+  }
+
+  rtToClient(x: number, y: number) {
+    const r = this.renderer.domElement.getBoundingClientRect()
+    return {
+      x: r.left + (x / this.rtWidth) * r.width,
+      y: r.top + (y / this.rtHeight) * r.height,
+    }
+  }
+
+  clientToNdc(clientX: number, clientY: number) {
+    const r = this.renderer.domElement.getBoundingClientRect()
+    return {
+      x: ((clientX - r.left) / r.width) * 2 - 1,
+      y: -((clientY - r.top) / r.height) * 2 + 1,
+    }
   }
 
   private makeRT() {
@@ -238,10 +275,9 @@ export class Pipeline {
   }
 
   private applySize() {
-    const w = window.innerWidth
-    const h = window.innerHeight
+    this.computeCssBox()
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3))
-    this.renderer.setSize(w, h)
+    this.renderer.setSize(this.cssW, this.cssH)
 
     const newH = this.computeRtHeight()
     if (newH !== this.rtHeight) {
@@ -273,6 +309,9 @@ export class Pipeline {
   setLocus(x: number, y: number, amp: number) {
     ;(this.uniforms.uLocus.value as THREE.Vector2).set(x, y)
     this.uniforms.uLocusAmp.value = amp
+  }
+  set fringe(v: number) {
+    this.uniforms.uFringe.value = v
   }
   get dissolve(): number {
     return this.uniforms.uDissolve.value as number

@@ -225,8 +225,10 @@ console.log('chose ending:', MODE)
 await page.waitForTimeout(4000)
 await page.screenshot({ path: `shots/pt-${MODE}-ending.png` })
 await waitForState('outro', 40000)
-await waitForState('title', 30000)
-console.log('OUTRO complete, back at title')
+await waitForState('epitaph', 30000)
+await page.waitForTimeout(1500)
+await page.screenshot({ path: `shots/pt-${MODE}-epitaph.png` })
+console.log('OUTRO complete, epitaph card up')
 
 const summary = await page.evaluate(() => ({
   trust: window.__tkm.trust.value,
