@@ -19,6 +19,7 @@ export class MachineVoice {
   private revealed = 0
   private holdLeft = 0
   private lastTickChar = 0
+  private revealDone = false
 
   say(text: string, opts: { onDone?: () => void; hold?: number; yFrac?: number } = {}) {
     this.queue.push({
@@ -49,9 +50,11 @@ export class MachineVoice {
   }
 
   clear() {
+    if (this.current && !this.revealDone) bus.emit('machine:reveal-done')
     this.queue = []
     this.current = null
     this.revealed = 0
+    this.revealDone = true
   }
 
   update(dt: number) {
@@ -62,6 +65,7 @@ export class MachineVoice {
       this.revealed = 0
       this.holdLeft = next.hold
       this.lastTickChar = 0
+      this.revealDone = false
       bus.emit('machine:line-start')
     }
     const line = this.current
@@ -70,7 +74,7 @@ export class MachineVoice {
       if (Math.floor(this.revealed) > this.lastTickChar) {
         this.lastTickChar = Math.floor(this.revealed)
         const ch = line.text[this.lastTickChar - 1]
-        if (ch && ch !== ' ') bus.emit('machine:tick')
+        if (ch && ch !== ' ') bus.emit('machine:tick', ch)
       }
     } else {
       this.holdLeft -= dt
@@ -78,6 +82,11 @@ export class MachineVoice {
         this.current = null
         line.onDone?.()
       }
+    }
+    // Reveal can finish via the timer above or via skip(); catch both here.
+    if (!this.revealDone && this.revealed >= line.text.length) {
+      this.revealDone = true
+      bus.emit('machine:reveal-done')
     }
   }
 

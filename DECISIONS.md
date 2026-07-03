@@ -4,6 +4,9 @@ One line each: decision + why + what to review.
 
 ## P6 pass
 - **OG/social card = the hall shot (beam + gold door) with title left, composed at 1200×630** via `tools/og-card.html` + `tools/render-og.mjs` → committed as `public/og.png`; absolute URLs in index.html meta since OG scrapers require them. Review: swap the base image for the §7c title card when it exists — it's the intended launch image.
+- **Four machine-voice audio treatments behind `?voice=`** (reed/liturgy/presence/choir; default unchanged grain) — robotic-calm comes from *removing* randomness (reed), pitch order (liturgy chants a fixed Am9 cycle, punctuation lands the root), or a breathing bed that fades in only while it speaks (presence). Deterministic on purpose: sameness is what reads as machine. Review: A/B on your phone, pick one, I delete the rest.
+- **`machine:tick` now carries the character; `machine:reveal-done` emitted when a line finishes revealing** (timer or skip) — lets audio give punctuation weight and lets the speech bed track actual speaking, not the hold. Review: none, behavior identical with default voice.
+- **Hero assets pivot to Maxim's AI generations** (scope §7c said title card "should be your hand") — his call July 3; thematically self-consistent (machine-reconstructed art for a machine that reconstructs). Generation briefs in `notes/asset-briefs.md`; ingestion pipeline (threshold-to-1-bit, smear slot, palette-shift) is the next build. Review: keep one human mark in the launch post.
 
 ## P2 pass
 - **Character is code-animated primitives, not imported assets.** At 360px, silhouette + motion (springs, lag, weight) beat mesh detail; no Blender dependency; a modeled mesh can drop into the same hierarchy later. Review: walk feel on your phone — tuning constants live at the top of character.ts.
