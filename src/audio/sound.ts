@@ -15,8 +15,9 @@ import { atmosphere } from '../core/atmosphere'
 //              monotone pitch, falling inflection at punctuation (no words, no VO)
 //   hum      — voice-like: a sustained vowel hum that morphs while text reveals,
 //              with the quiet reed tick typing over it
-export type VoiceMode = 'grain' | 'reed' | 'liturgy' | 'presence' | 'choir' | 'vox' | 'hum'
-const VOICE_MODES: VoiceMode[] = ['grain', 'reed', 'liturgy', 'presence', 'choir', 'vox', 'hum']
+//   voice    — vox babble speaking over the hum bed (the combination)
+export type VoiceMode = 'grain' | 'reed' | 'liturgy' | 'presence' | 'choir' | 'vox' | 'hum' | 'voice'
+const VOICE_MODES: VoiceMode[] = ['grain', 'reed', 'liturgy', 'presence', 'choir', 'vox', 'hum', 'voice']
 
 // Am9 chord tones (the drone sits at ~A1); the cycle resets each line so
 // every sentence chants the same rising figure. Deliberately deterministic.
@@ -226,7 +227,7 @@ class Sound {
     const ctx = this.ctx
     if (!ctx || !this.master || !this.tickBuf) return
     const mode = this.voiceMode
-    if (mode === 'vox') {
+    if (mode === 'vox' || mode === 'voice') {
       // Wordless formant babble. Vowels in the actual text pick the mouth
       // shape; consonants collapse to a closed dark blip; punctuation gets
       // a longer falling "mm". Monotone pitch — the flatness is the machine.
@@ -235,7 +236,7 @@ class Sound {
       const vowel = ch && FORMANTS[ch.toLowerCase()]
       const [f1, f2] = punct ? FORMANTS.o : vowel || [340, 700]
       const dur = punct ? 0.26 : vowel ? 0.1 : 0.06
-      const level = punct ? 0.5 : vowel ? 0.45 : 0.3
+      const level = punct ? 0.8 : vowel ? 0.72 : 0.48
       const o = ctx.createOscillator()
       o.type = 'sawtooth'
       o.frequency.setValueAtTime(VOX_PITCH, ctx.currentTime)
@@ -314,10 +315,12 @@ class Sound {
     if (this.bedGain && (this.voiceMode === 'presence' || this.voiceMode === 'choir')) {
       this.bedGain.gain.setTargetAtTime(0.14, this.ctx.currentTime, 0.12)
     }
-    if (this.humGain && this.voiceMode === 'hum') {
+    if (this.humGain && (this.voiceMode === 'hum' || this.voiceMode === 'voice')) {
       this.humActive = true
       this.humNextVowelAt = this.ctx.currentTime + 0.55
-      this.humGain.gain.setTargetAtTime(0.3, this.ctx.currentTime, 0.18)
+      // Under the babble the hum sits lower so the "speech" stays on top.
+      const level = this.voiceMode === 'voice' ? 0.22 : 0.3
+      this.humGain.gain.setTargetAtTime(level, this.ctx.currentTime, 0.18)
     }
   }
 
