@@ -69,11 +69,14 @@ export class Overlay {
       maxWidth?: number
       lineHeight?: number
       alpha?: number
+      bold?: boolean
     } = {}
   ): number {
     const ctx = this.ctx
     const size = opts.size ?? 12
-    const font = `${size}px ${opts.font ?? FONT_UI}`
+    // Bold by default: thin strokes do not survive the quantizer.
+    const weight = opts.bold === false ? '' : 'bold '
+    const font = `${weight}${size}px ${opts.font ?? FONT_UI}`
     const lines = opts.maxWidth ? this.wrap(str, font, opts.maxWidth) : [str]
     const lh = opts.lineHeight ?? size + 4
     ctx.font = font
@@ -86,19 +89,20 @@ export class Overlay {
     return lines.length * lh
   }
 
-  // Machine speech: green, centered in the lower third, serif.
+  // Machine speech: green, centered in the lower third, serif, bold —
+  // serif hairlines dissolve in the dither; bold stems survive it.
   machineText(str: string, opts: { alpha?: number; yFrac?: number; size?: number } = {}) {
-    const size = opts.size ?? 16
-    const maxW = this.w - 40
-    const font = `${size}px ${FONT_MACHINE}`
+    const size = opts.size ?? 18
+    const maxW = this.w - 36
+    const font = `bold ${size}px ${FONT_MACHINE}`
     const lines = this.wrap(str, font, maxW)
-    const lh = size + 5
+    const lh = size + 6
     const blockH = lines.length * lh
     const y = Math.round(this.h * (opts.yFrac ?? 0.68)) - blockH / 2
     const ctx = this.ctx
-    ctx.globalAlpha = (opts.alpha ?? 1) * 0.78
+    ctx.globalAlpha = (opts.alpha ?? 1) * 0.86
     ctx.fillStyle = CSS.black
-    ctx.fillRect(this.w / 2 - maxW / 2 - 5, y - 6, maxW + 10, blockH + 11)
+    ctx.fillRect(this.w / 2 - maxW / 2 - 5, y - 7, maxW + 10, blockH + 13)
     ctx.font = font
     ctx.fillStyle = CSS.green
     ctx.textAlign = 'center'
@@ -110,21 +114,21 @@ export class Overlay {
 
   // Player-side captions (examine text): bone, bottom band.
   caption(str: string, opts: { alpha?: number } = {}) {
-    const size = 13
-    const maxW = this.w - 34
-    const font = `${size}px ${FONT_UI}`
+    const size = 15
+    const maxW = this.w - 32
+    const font = `bold ${size}px ${FONT_UI}`
     const lines = this.wrap(str, font, maxW)
-    const lh = size + 4
-    const y = this.h - 28 - lines.length * lh
+    const lh = size + 5
+    const y = this.h - 30 - lines.length * lh
     const ctx = this.ctx
-    ctx.globalAlpha = (opts.alpha ?? 0.92) * 0.75
+    ctx.globalAlpha = (opts.alpha ?? 1) * 0.86
     ctx.fillStyle = CSS.black
-    ctx.fillRect(this.w / 2 - maxW / 2 - 5, y - 5, maxW + 10, lines.length * lh + 9)
+    ctx.fillRect(this.w / 2 - maxW / 2 - 5, y - 6, maxW + 10, lines.length * lh + 11)
     ctx.font = font
     ctx.fillStyle = CSS.bone
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
-    ctx.globalAlpha = opts.alpha ?? 0.92
+    ctx.globalAlpha = opts.alpha ?? 1
     lines.forEach((l, i) => ctx.fillText(l, this.w / 2, y + i * lh))
     ctx.globalAlpha = 1
   }
@@ -150,10 +154,10 @@ export class Overlay {
       ctx.fillStyle = CSS.green
       ctx.fillRect(x + 3, y + 3, w - 6, h - 6)
     }
-    const size = 14
-    const font = `${size}px ${FONT_MACHINE}`
+    const size = 16
+    const font = `bold ${size}px ${FONT_MACHINE}`
     const lines = this.wrap(label, font, w - 14)
-    const lh = size + 3
+    const lh = size + 4
     ctx.font = font
     ctx.fillStyle = opts.selected ? CSS.black : CSS.green
     ctx.textAlign = 'center'

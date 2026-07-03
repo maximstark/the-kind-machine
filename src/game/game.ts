@@ -660,11 +660,11 @@ export class Game {
         align: 'center',
         color: CSS.bone,
       })
-      const pulse = 0.5 + 0.4 * Math.sin(t * 2.2)
+      const pulse = 0.72 + 0.24 * Math.sin(t * 2.2)
       o.text('touch the dark to begin', o.w / 2, o.h * 0.62, {
-        size: 12,
+        size: 14,
         align: 'center',
-        color: CSS.ash,
+        color: CSS.bone,
         alpha: pulse,
       })
       const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
@@ -672,11 +672,12 @@ export class Game {
         this.input.keyboardSeen || !touch
           ? 'wasd to walk · click to look closer · space to hurry'
           : 'tap the ground to walk · tap what glimmers to look closer'
-      o.text(hint, o.w / 2, o.h * 0.62 + 22, {
-        size: 10,
+      o.text(hint, o.w / 2, o.h * 0.62 + 26, {
+        size: 12,
         align: 'center',
         color: CSS.ash,
-        alpha: 0.55,
+        alpha: 0.9,
+        maxWidth: o.w - 56,
       })
       return
     }
@@ -802,26 +803,26 @@ export class Game {
     for (const line of lines) {
       y += o.text(line, cx, y, {
         font: FONT_MACHINE,
-        size: 14,
+        size: 16,
         align: 'center',
         color: CSS.green,
-        maxWidth: o.w - 60,
+        maxWidth: o.w - 56,
       })
-      y += 10
+      y += 12
     }
 
     o.text('maximstark.github.io/the-kind-machine', cx, o.h * 0.86, {
-      size: 10,
+      size: 12,
       align: 'center',
       color: CSS.ash,
-      alpha: 0.6,
+      alpha: 0.9,
     })
-    const pulse = 0.4 + 0.35 * Math.sin(t * 2)
+    const pulse = 0.68 + 0.24 * Math.sin(t * 2)
     o.text('touch the dark to walk it again', cx, o.h * 0.92, {
       // DRAFT
-      size: 11,
+      size: 13,
       align: 'center',
-      color: CSS.ash,
+      color: CSS.bone,
       alpha: pulse,
     })
   }
@@ -830,10 +831,10 @@ export class Game {
     const p = this.worldToRt(v)
     if (!p.visible) return
     const ctx = this.pipeline.uiCtx
-    const a = 0.25 + 0.2 * Math.sin(t * 3 + v.x)
+    const a = 0.4 + 0.3 * Math.sin(t * 3 + v.x)
     ctx.globalAlpha = a
     ctx.fillStyle = color
-    ctx.fillRect(Math.round(p.x) - 1, Math.round(p.y) - 1, 2, 2)
+    ctx.fillRect(Math.round(p.x) - 1, Math.round(p.y) - 2, 3, 3)
     ctx.globalAlpha = 1
   }
 
