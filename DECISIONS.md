@@ -2,6 +2,9 @@
 
 One line each: decision + why + what to review.
 
+## P6 pass
+- **OG/social card = the hall shot (beam + gold door) with title left, composed at 1200×630** via `tools/og-card.html` + `tools/render-og.mjs` → committed as `public/og.png`; absolute URLs in index.html meta since OG scrapers require them. Review: swap the base image for the §7c title card when it exists — it's the intended launch image.
+
 ## P2 pass
 - **Character is code-animated primitives, not imported assets.** At 360px, silhouette + motion (springs, lag, weight) beat mesh detail; no Blender dependency; a modeled mesh can drop into the same hierarchy later. Review: walk feel on your phone — tuning constants live at the top of character.ts.
 - **Cold open states the situation, withholds only cause and blame.** The scope doc forbids stating the theme, not the premise; the logline itself is player-facing. Review: the five coldOpen lines in script.ts.
