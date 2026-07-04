@@ -67,12 +67,22 @@ async function build() {
     out[`ending-${kind}`] = renderCard(w, h, 4, (ctx) => {
       ctx.drawImage(ill, 0, 0, w, h)
       if (kind === 'keep') {
+        // Mirrors the epitaph's dry-brushed crossing-out, scaled.
         ctx.strokeStyle = accent
-        ctx.lineWidth = 3 * k
-        ctx.beginPath()
-        ctx.moveTo(-10 * k, h)
-        ctx.lineTo(w + 10 * k, 0)
-        ctx.stroke()
+        const passes: [number, number, number, number][] = [
+          [0, 0, 3, 1],
+          [2, -1.5, 1.5, 0.75],
+          [-2, 1.5, 1, 0.5],
+        ]
+        for (const [ox, oy, lw, a] of passes) {
+          ctx.globalAlpha = a
+          ctx.lineWidth = lw * k
+          ctx.beginPath()
+          ctx.moveTo((-10 + ox) * k, h + oy * k)
+          ctx.lineTo(w + (10 + ox) * k, oy * k)
+          ctx.stroke()
+        }
+        ctx.globalAlpha = 1
         ctx.globalAlpha = 0.4
         ctx.fillStyle = CSS.ash
         for (let i = 0; i < 7; i++) {

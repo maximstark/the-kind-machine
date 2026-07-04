@@ -4,16 +4,17 @@
   body { width: 1200px; height: 630px; background: #131118; overflow: hidden; }
   .card { position: relative; width: 1200px; height: 630px; background: #131118; }
 
-  /* Right panel: the hall — beam, door, tiny figure */
+  /* Right panel: the §7c title art (isolated render, no type) —
+     arch through the light pool, tiny figure. */
   .shot {
     position: absolute; right: 0; top: 0;
     width: 720px; height: 630px; overflow: hidden;
   }
   .shot img {
     position: absolute;
-    width: 1014px;               /* 780 * 1.3 */
-    left: -140px;                /* center the beam (source x390 -> 507) */
-    top: -700px;                 /* beam apex through the glow pool at the door */
+    width: 720px;
+    left: 0;
+    top: -215px;                 /* pool + figure in frame; the arch apex may break frame */
     image-rendering: pixelated;
   }
   /* Blend the seam into the card background */
@@ -53,7 +54,7 @@
 </style>
 <div class="card">
   <div class="shot">
-    <img src="file:///C:/Users/Mercardib/OneDrive/Documents/Coding/TheKindMachine/shots/pt-keep-hall.png">
+    <img src="file:///C:/Users/Mercardib/OneDrive/Documents/Coding/TheKindMachine/notes/card-title.png">
   </div>
   <div class="text">
     <h1>THE KIND<br>MACHINE</h1>

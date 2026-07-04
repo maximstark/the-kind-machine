@@ -16,7 +16,10 @@ export type HeroKey = 'title' | 'avatar' | 'ending'
 // generation. Preview a sweep: node tools/probe-threshold.mjs <file>.
 const MANIFEST: Record<HeroKey, { file: string; threshold: number; invert?: boolean }> = {
   title: { file: 'title.png', threshold: 0.42 },
-  avatar: { file: 'avatar.png', threshold: 0.45 },
+  // 0.55 (sweep July 4, Maxim's generation): the hairline seam appears and
+  // the features carve deepest while the face stays solid — contrast the
+  // ~23px in-world read needs.
+  avatar: { file: 'avatar.png', threshold: 0.55 },
   ending: { file: 'ending.png', threshold: 0.42 },
 }
 

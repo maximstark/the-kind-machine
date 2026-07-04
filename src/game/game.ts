@@ -839,12 +839,23 @@ export class Game {
       const dx = cx - dw / 2
       ctx.drawImage(ill, dx, bandTop, dw, dh)
       if (kept) {
+        // The crossing-out, dry-brushed to match the art's stroke language.
+        // Fixed offsets, not random — the epitaph redraws every frame.
         ctx.strokeStyle = accent
-        ctx.lineWidth = 3
-        ctx.beginPath()
-        ctx.moveTo(dx - 10, bandTop + dh)
-        ctx.lineTo(dx + dw + 10, bandTop)
-        ctx.stroke()
+        const passes: [number, number, number, number][] = [
+          [0, 0, 3, 1],
+          [2, -1.5, 1.5, 0.75],
+          [-2, 1.5, 1, 0.5],
+        ]
+        for (const [ox, oy, lw, a] of passes) {
+          ctx.globalAlpha = a
+          ctx.lineWidth = lw
+          ctx.beginPath()
+          ctx.moveTo(dx - 10 + ox, bandTop + dh + oy)
+          ctx.lineTo(dx + dw + 10 + ox, bandTop + oy)
+          ctx.stroke()
+        }
+        ctx.globalAlpha = 1
         // Scratches: the record stayed contested.
         ctx.globalAlpha = 0.4
         ctx.fillStyle = CSS.ash
