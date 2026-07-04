@@ -255,6 +255,10 @@ export function buildDoor(): GameScene {
     plainExamines,
     waymark: P(40, 0, 0.6),
     entryLine: 'This is the hall. I have kept it the size it felt, not the size it was. Come to the light.', // DRAFT
+    entryVariants: {
+      deferent: 'This is the hall. I have kept it the size it felt, not the size it was. We will finish the day together. Come to the light.', // DRAFT
+      defiant: 'This is the hall. I have kept it the size it felt, not the size it was. Bring your own account with you. Come to the light.', // DRAFT
+    },
     quiz: { lie: false, mutation: false },
     weather: 0.18,
     finale: assemble,

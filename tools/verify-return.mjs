@@ -79,10 +79,26 @@ if (seededLast?.ending !== 'keep') fail('seeded visit: lastRun not loaded')
 
 await page.mouse.click(195, 420)
 const returnLines = await collectLines('explore')
-// The field beat is queued behind the entry line; give it time to surface.
-await page.waitForTimeout(9000)
-const lateLines = await page.evaluate(() => window.__tkm.voice.currentText)
-const all = [...returnLines, lateLines].filter(Boolean)
+// The field beat is queued behind the entry line. Keep collecting lines as
+// they surface (a single timed sample races the line pacing) until the beat
+// arrives or the window closes.
+const lateLines = await page.evaluate(
+  (marker) =>
+    new Promise((resolveP) => {
+      const seen = []
+      const t0 = Date.now()
+      const iv = setInterval(() => {
+        const cur = window.__tkm.voice.currentText
+        if (cur && seen[seen.length - 1] !== cur) seen.push(cur)
+        if (seen.some((l) => l.includes(marker)) || Date.now() - t0 > 20000) {
+          clearInterval(iv)
+          resolveP(seen)
+        }
+      }, 150)
+    }),
+  KEEP_MARKER
+)
+const all = [...returnLines, ...lateLines].filter(Boolean)
 if (!all.some((l) => l.includes(RETURN_MARKER))) fail('returning: cold open return line missing')
 if (!all.some((l) => l.includes(KEEP_MARKER))) fail('returning: field keep-beat missing')
 console.log('returning visit: cold open + field beat present — OK')

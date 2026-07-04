@@ -198,6 +198,10 @@ export function buildTower(): GameScene {
     plainExamines,
     waymark: new THREE.Vector3(-5.6, 1.9, -2.6),
     entryLine: 'The signal tower. When it burned, they knew to gather. You knew what it meant. Everyone did.', // DRAFT
+    entryVariants: {
+      deferent: 'The signal tower. When it burned, they knew to gather. We are keeping this one well together, you and I.', // DRAFT
+      defiant: 'The signal tower. When it burned, they knew to gather. Hold it against your own account. You will anyway.', // DRAFT
+    },
     quiz: { lie: true, mutation: true, quizCount: 3 },
     weather: 0.11,
     update(dt) {

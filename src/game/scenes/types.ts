@@ -32,6 +32,9 @@ export interface GameScene {
   // The hall uses this for the pullback — awe is a camera setting.
   viewWidthAt?(playerPos: THREE.Vector3): number
   entryLine: string
+  // Trust-flavored alternates for the entry line; wavering keeps entryLine.
+  // The field never sets these — no answers have been given yet.
+  entryVariants?: Partial<Record<'deferent' | 'defiant', string>>
   quiz: { lie: boolean; mutation: boolean; quizCount?: number }
   weather?: number // ambient floor for the render pipeline, rises scene to scene
   applyDetailState(id: string, state: string): void

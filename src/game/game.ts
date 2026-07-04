@@ -15,6 +15,7 @@ import { voice } from './machine'
 import { quizController } from './quiz'
 import { SCRIPT, pick } from './script'
 import { flourish } from './flourish'
+import { heroAssets } from './heroAssets'
 import { sound } from '../audio/sound'
 import type { GameScene, SceneContext } from './scenes/types'
 
@@ -588,7 +589,9 @@ export class Game {
       if (this.stateT >= 2.4) {
         this.setState('explore')
         this.waymarkAnnounced = false
-        voice.say(this.scene.entryLine)
+        const band = trust.band
+        const variant = band === 'wavering' ? undefined : this.scene.entryVariants?.[band]
+        voice.say(variant ?? this.scene.entryLine)
         if (archive.lastRun && this.scene.id === 'field' && !this.returnBeatSaid) {
           this.returnBeatSaid = true
           voice.say(
@@ -701,6 +704,22 @@ export class Game {
 
     if (this.state === 'title') {
       o.fade(1)
+      // §7c title card, when the generation exists — cover-fit, cropped at
+      // the sides (the card is composed portrait 4:5, subject center-low).
+      const card = heroAssets.tinted('title', CSS.bone)
+      if (card) {
+        const ctx = this.pipeline.uiCtx
+        const s = Math.max(o.w / card.width, o.h / card.height)
+        const dw = card.width * s
+        const dh = card.height * s
+        ctx.globalAlpha = 0.9
+        ctx.drawImage(card, (o.w - dw) / 2, (o.h - dh) / 2, dw, dh)
+        ctx.globalAlpha = 1
+        // The type bands stay dark whatever the generation put there.
+        ctx.fillStyle = 'rgba(19,17,24,0.62)'
+        ctx.fillRect(0, o.h * 0.3 - 12, o.w, 104)
+        ctx.fillRect(0, o.h * 0.62 - 10, o.w, 96)
+      }
       o.text('THE KIND', o.w / 2, o.h * 0.3, {
         font: FONT_MACHINE,
         size: 34,
@@ -807,27 +826,57 @@ export class Game {
       color: CSS.bone,
     })
 
-    // The sigil: the chalk circle. Crossed if you kept your own account;
-    // unbroken if you let the machine's stand.
-    const sy = o.h * 0.28
-    ctx.strokeStyle = accent
-    ctx.lineWidth = 3
-    ctx.beginPath()
-    ctx.arc(cx, sy, 26, 0, Math.PI * 2)
-    ctx.stroke()
-    if (kept) {
-      ctx.beginPath()
-      ctx.moveTo(cx - 32, sy + 20)
-      ctx.lineTo(cx + 32, sy - 20)
-      ctx.stroke()
-      // Scratches: the record stayed contested.
-      ctx.globalAlpha = 0.4
-      for (let i = 0; i < 5; i++) {
-        const yy = sy - 30 + i * 14 + Math.sin(i * 7) * 3
+    // §7c ending illustration when present: one image, two palette
+    // treatments — gold and clean if you let its account stand, bone and
+    // crossed out if you kept your own. Falls back to the chalk sigil.
+    const ill = heroAssets.tinted('ending', accent)
+    if (ill) {
+      const bandTop = o.h * 0.16
+      const bandH = o.h * 0.24
+      const s = Math.min((o.w - 120) / ill.width, bandH / ill.height)
+      const dw = ill.width * s
+      const dh = ill.height * s
+      const dx = cx - dw / 2
+      ctx.drawImage(ill, dx, bandTop, dw, dh)
+      if (kept) {
+        ctx.strokeStyle = accent
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        ctx.moveTo(dx - 10, bandTop + dh)
+        ctx.lineTo(dx + dw + 10, bandTop)
+        ctx.stroke()
+        // Scratches: the record stayed contested.
+        ctx.globalAlpha = 0.4
         ctx.fillStyle = CSS.ash
-        ctx.fillRect(cx - 52 + (i % 3) * 8, yy, 20 + (i % 2) * 14, 1.5)
+        for (let i = 0; i < 7; i++) {
+          const yy = bandTop + 8 + (i * (dh - 16)) / 6 + Math.sin(i * 7) * 3
+          ctx.fillRect(dx - 14 + (i % 3) * 10, yy, 22 + (i % 2) * 16, 1.5)
+        }
+        ctx.globalAlpha = 1
       }
-      ctx.globalAlpha = 1
+    } else {
+      // The sigil: the chalk circle. Crossed if you kept your own account;
+      // unbroken if you let the machine's stand.
+      const sy = o.h * 0.28
+      ctx.strokeStyle = accent
+      ctx.lineWidth = 3
+      ctx.beginPath()
+      ctx.arc(cx, sy, 26, 0, Math.PI * 2)
+      ctx.stroke()
+      if (kept) {
+        ctx.beginPath()
+        ctx.moveTo(cx - 32, sy + 20)
+        ctx.lineTo(cx + 32, sy - 20)
+        ctx.stroke()
+        // Scratches: the record stayed contested.
+        ctx.globalAlpha = 0.4
+        for (let i = 0; i < 5; i++) {
+          const yy = sy - 30 + i * 14 + Math.sin(i * 7) * 3
+          ctx.fillStyle = CSS.ash
+          ctx.fillRect(cx - 52 + (i % 3) * 8, yy, 20 + (i % 2) * 14, 1.5)
+        }
+        ctx.globalAlpha = 1
+      }
     }
 
     const lines: string[] = []

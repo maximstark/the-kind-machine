@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { PALETTE_HEX } from '../../core/palette'
+import { heroAssets } from '../heroAssets'
 
 // Modular graybox prop kit. Flat-shaded low-poly primitives; the dither
 // shader does the art. All placeholder dressing — TODO(maxim): hero assets per §7c.
@@ -394,6 +395,9 @@ export function droppedTorches(spots: [number, number, number][]): THREE.Group {
 
 // The ARCHIVIST's locus: a classical bust that waits at the mark.
 // The pipeline smears reality around it; the render never keeps it still.
+// When the §7c avatar generation is present, the primitive head yields to a
+// 1-bit face quad billboarded at the iso camera — sitting inside the locus
+// smear, so the render owns its dissolving.
 export function archivistBust(): THREE.Group {
   const g = new THREE.Group()
   const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.0, 0.7), MAT.darkStone)
@@ -411,6 +415,21 @@ export function archivistBust(): THREE.Group {
   nose.position.set(0, 1.44, 0.17)
   g.add(plinth, shoulders, neck, head, brow, nose)
   g.name = 'archivist'
+  heroAssets.whenReady('avatar', () => {
+    const tex = heroAssets.worldTexture('avatar')
+    const a = heroAssets.get('avatar')
+    if (!tex || !a) return
+    g.remove(neck, head, brow, nose)
+    const hgt = 0.78
+    const quad = new THREE.Mesh(
+      new THREE.PlaneGeometry(hgt * (a.w / a.h), hgt),
+      new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5 })
+    )
+    quad.position.y = 1.52
+    quad.lookAt(quad.position.clone().add(CAM_DIR))
+    quad.name = 'archivist-avatar'
+    g.add(quad)
+  })
   return g
 }
 

@@ -5,6 +5,7 @@ import { trust } from './game/trust'
 import { archive } from './game/archive'
 import { quizController } from './game/quiz'
 import { voice } from './game/machine'
+import { heroAssets } from './game/heroAssets'
 import { sound } from './audio/sound'
 import { atmosphere } from './core/atmosphere'
 import { buildField } from './game/scenes/field'
@@ -54,6 +55,7 @@ document.addEventListener('visibilitychange', () => {
   sound,
   quiz: quizController,
   voice,
+  heroAssets,
   THREE,
   tapClient(x: number, y: number) {
     ;(game as any).handleTap(x, y)

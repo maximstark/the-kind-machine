@@ -222,6 +222,10 @@ export function buildChapel(): GameScene {
     plainExamines,
     waymark: new THREE.Vector3(0, 1.9, 4.2),
     entryLine: 'The chapel. They brought their fears here first, before they brought each other.', // DRAFT
+    entryVariants: {
+      deferent: 'The chapel. Between us the field is already settled. This room will ask more of both of us.', // DRAFT
+      defiant: 'The chapel. You and I carry the field differently. That is all right. They brought their fears here too.', // DRAFT
+    },
     quiz: { lie: true, mutation: true, quizCount: 3 },
     weather: 0.05,
     update(dt) {
