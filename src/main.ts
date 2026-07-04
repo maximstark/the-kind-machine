@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { Game } from './game/game'
 import { ledger } from './game/ledger'
 import { trust } from './game/trust'
+import { archive } from './game/archive'
 import { quizController } from './game/quiz'
 import { voice } from './game/machine'
 import './audio/sound'
@@ -49,6 +50,7 @@ document.addEventListener('visibilitychange', () => {
   atmosphere,
   bus,
   trust,
+  archive,
   quiz: quizController,
   voice,
   THREE,

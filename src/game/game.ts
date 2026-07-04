@@ -8,6 +8,7 @@ import { bus } from '../core/bus'
 import { CSS } from '../core/palette'
 import { ledger } from './ledger'
 import { trust } from './trust'
+import { archive } from './archive'
 import { Player } from './player'
 import { Grid } from './grid'
 import { voice } from './machine'
@@ -363,7 +364,10 @@ export class Game {
 
   private beginColdOpen() {
     this.setState('cold-open')
-    const lines = SCRIPT.coldOpen
+    // A returning visitor gets one more line. The machine kept the visit.
+    const lines: readonly string[] = archive.lastRun
+      ? [...SCRIPT.coldOpen, SCRIPT.returnVisit.coldOpen]
+      : SCRIPT.coldOpen
     let i = 0
     const next = () => {
       if (this.state !== 'cold-open') return
@@ -380,6 +384,7 @@ export class Game {
   // --- waymark gate: look before you are asked ---
 
   private waymarkAnnounced = false
+  private returnBeatSaid = false
 
   private waymarkReady(): boolean {
     if (this.scene.waymarkActive) return this.scene.waymarkActive()
@@ -519,10 +524,13 @@ export class Game {
   private endGame(kind: 'accept' | 'keep') {
     this.finished = true
     this.endingKind = kind
+    // Whether this visit is remembered is decided before it is acknowledged.
+    const returning = archive.lastRun !== null
+    archive.record(kind)
     atmosphere.baseline = kind === 'accept' ? 0 : 0.3
     if (kind === 'accept') atmosphere.becalm()
     // One line before the ink runs out. Never confirmed, never explained.
-    voice.say('Thank you for helping me remember.', {
+    voice.say(returning ? SCRIPT.returnVisit.thanksAgain : 'Thank you for helping me remember.', {
       // DRAFT
       hold: 3.2,
       onDone: () => {
@@ -578,6 +586,14 @@ export class Game {
         this.setState('explore')
         this.waymarkAnnounced = false
         voice.say(this.scene.entryLine)
+        if (archive.lastRun && this.scene.id === 'field' && !this.returnBeatSaid) {
+          this.returnBeatSaid = true
+          voice.say(
+            archive.lastRun.ending === 'accept'
+              ? SCRIPT.returnVisit.fieldAccept
+              : SCRIPT.returnVisit.fieldKeep
+          )
+        }
         bus.emit('scene:entered', this.scene.id)
       }
     }

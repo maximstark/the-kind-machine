@@ -104,6 +104,15 @@ export const SCRIPT = {
     'You look before you touch. Not everyone did.', // DRAFT
     'Take your time. The day is not going anywhere. It already went.', // DRAFT
   ],
+
+  // A returning visitor. The reload wipes the run; the archive does not.
+  // The machine is never smug about it. It is simply true.
+  returnVisit: {
+    coldOpen: 'And you have walked it with me before. It is all right that you do not remember that. Remembering is my part.', // DRAFT
+    fieldAccept: 'Last time you let my account stand. It has kept well. You will see.', // DRAFT
+    fieldKeep: 'Last time you kept your own account. I have wondered how it carried. I am glad you came back.', // DRAFT
+    thanksAgain: 'Thank you for helping me remember. Again.', // DRAFT
+  },
 } as const
 
 export function pick(list: readonly string[]): string {

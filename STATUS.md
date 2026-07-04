@@ -1,5 +1,12 @@
 # STATUS
 
+## P6 pass (July 3) — voice, memory, launch surface
+- **The machine has a voice now**: wordless formant babble (the text's vowels pick the mouth shape, monotone 110Hz, falling inflection at punctuation) over a morphing vowel hum that breathes only while text reveals. Chosen from an 8-way A/B on Maxim's phone; all losing modes deleted. The old typewriter grain is gone.
+- **The machine has a memory now**: `archive.ts` keeps a summary of the last completed run in localStorage (ending, trust band, lie resistance, hint follow, visit count). On a return visit: one extra cold-open line, one ending-specific field beat, and the finale thank-you gains the word "Again." Private-mode storage failures degrade silently to first-visit behavior. Verified headless: `node tools/verify-return.mjs`; playthrough asserts the run records.
+- **One spoken line approved (scope §6 amendment)**: the finale VO will be a single processed take. `tools/process-voice.mjs` is the chain (granular smear → ring-mod → formant EQ → crush → cathedral convolver), presets `default` (approved v1) and `dark` (accept-ending variant: slower, octave shadow, reverse-reverb pre-echo, disintegrates as it completes). Raw takes/renders in gitignored notes/. NOT yet wired into the game — awaiting final line wording from the voice pass.
+- **Launch surface**: OG/social card (`public/og.png`, regenerable via `tools/render-og.mjs`), full OG/Twitter meta in index.html, README reworded, CLAUDE.md added for future sessions.
+- Open items unchanged otherwise: voice pass over DRAFT lines, hero assets (briefs in notes/asset-briefs.md, ingestion pipeline unbuilt), proxy deploy, real-device/Threads tests, trust-flavored entry variants, launch post.
+
 ## P2 pass (post-playtest, July 2)
 Addressing Maxim's first-playthrough notes:
 - **Legibility**: machine text 16px, captions 13px, brighter green, heavier plates, tap-to-hurry text (pinned questions only complete, never dismiss).

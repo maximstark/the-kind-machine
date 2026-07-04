@@ -244,8 +244,12 @@ const summary = await page.evaluate(() => ({
   band: window.__tkm.trust.band,
   quizCount: window.__tkm.ledger.quiz.length,
   hintFollows: window.__tkm.ledger.hintFollows,
+  archived: JSON.parse(localStorage.getItem('tkm-archive-v1')),
 }))
 console.log('SUMMARY:', JSON.stringify(summary))
+if (summary.archived?.ending !== MODE) {
+  errors.push(`archive did not record the run (got ${JSON.stringify(summary.archived)})`)
+}
 
 await browser.close()
 if (errors.length) {
