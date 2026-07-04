@@ -1,5 +1,13 @@
 # STATUS
 
+## P7 pass (July 4) — hero-asset ingestion + character sheet
+- **Maxim's playtest came back clean** (his words: the game is excellent); no fix-forward notes this round.
+- **Character sprite sheet for his AI passes**: `node tools/render-character.mjs` → `notes/character-sheet.png` (dev-only /sheet.html drives the real Character class — turnaround, orthos, close-ups, plus an in-game-scale dithered pair as ground truth). Delivered July 4.
+- **§7c ingestion pipeline is live end-to-end with committed placeholders**: `src/game/heroAssets.ts` crushes any PNG in `src/assets/` to a 1-bit mask at load (per-asset thresholds in its manifest; sweep-preview via `node tools/probe-threshold.mjs <file>`). Three slots wired: title card (cover-fit under the type, darkened text bands), ARCHIVIST avatar (1-bit quad replacing the bust's primitive head, billboarded, inside the existing locus smear — net −3 draw calls per scene), ending illustration on the epitaph (same image, gold/clean for accept, bone/crossed+scratched for keep; chalk-sigil fallback if the file is absent). Maxim's generations drop in by overwriting `title.png` / `avatar.png` / `ending.png`. Missing/unreadable file = procedural placeholder, zero regression.
+- **Trust-flavored entry variants written** (deferent/defiant for chapel, tower, hall; wavering keeps the base line; field stays single by design — trust doesn't exist yet). All `// DRAFT`.
+- **Flourish proxy hardened to config-only deploy**: origin allowlist (defaults to the live Pages domain + localhost), per-IP sliding window (40/10min), 8KB body cap, server-side one-line gate, `/healthz`. Deploy now needs only the VPS and `ANTHROPIC_API_KEY`.
+- Verified: build, both playthroughs, perf, return-visit memory, asset ingestion (`node tools/verify-assets.mjs`).
+
 ## P6 pass (July 3) — voice, memory, launch surface
 - **The machine has a voice now**: wordless formant babble (the text's vowels pick the mouth shape, monotone 110Hz, falling inflection at punctuation) over a morphing vowel hum that breathes only while text reveals. Chosen from an 8-way A/B on Maxim's phone; all losing modes deleted. The old typewriter grain is gone.
 - **The machine has a memory now**: `archive.ts` keeps a summary of the last completed run in localStorage (ending, trust band, lie resistance, hint follow, visit count). On a return visit: one extra cold-open line, one ending-specific field beat, and the finale thank-you gains the word "Again." Private-mode storage failures degrade silently to first-visit behavior. Verified headless: `node tools/verify-return.mjs`; playthrough asserts the run records.

@@ -13,6 +13,10 @@ npm run shot                             # headless screenshot of dev server -> 
 node tools/playthrough.mjs keep|accept   # automated full run to either ending — must pass before commit
 node tools/verify-perf.mjs               # draw calls per scene, budget < 50 (tower/chapel near budget)
 node tools/verify-return.mjs             # cross-run memory (archive) wiring
+node tools/verify-assets.mjs             # §7c ingestion: slots load, avatar quad mounted, title card draws
+node tools/render-character.mjs          # wanderer sprite sheet -> notes/character-sheet.png (for Maxim's AI passes)
+node tools/probe-threshold.mjs <img>     # 11-step 1-bit threshold sweep -> shots/ (tune heroAssets.ts manifest)
+node tools/make-placeholders.mjs         # regenerate src/assets/ placeholder PNGs (standalone)
 node tools/render-og.mjs tools/og-card.html public/og.png   # regenerate the OG/social card
 node tools/process-voice.mjs "notes/Final dialogue.m4a" [outBase] [--preset dark]  # spoken-line chain
 node tools/resample.mjs in.wav out.wav 16000   # lean ship-encode for audio assets
@@ -50,14 +54,13 @@ All verification is headless (Playwright, `channel: 'chrome'` — nothing opens 
 
 ## Open scope (as of July 4, 2026 — check STATUS.md/git log for drift)
 
-Done in P6 (see STATUS.md): OG card + link meta, machine voice (babble+hum, A/B'd and locked), spoken finale line wired (both renders), cross-run memory, CLAUDE.md itself.
+Done in P6–P7 (see STATUS.md): OG card + link meta, machine voice (babble+hum, A/B'd and locked), spoken finale line wired (both renders), cross-run memory, §7c ingestion pipeline (placeholders live in all three slots), character sprite sheet delivered, entry variants written, proxy hardened.
 
-1. **Voice pass over all `// DRAFT` lines** (~110 across script.ts, scene files, vite stub, proxy prompt, + 4 `returnVisit` lines) — Maxim's job by design. The finale line's wording is FINAL ("Thank you for helping me remember." — recorded audio matches it); don't reword it.
-2. **Hero assets (scope §7c) via Maxim's AI generations** (pivot from hand ink, logged in DECISIONS): briefs in `notes/asset-briefs.md`. **Next build on my side: the ingestion pipeline** — loader, tunable threshold-to-1-bit, ARCHIVIST-avatar live-smear slot, title card, ending-illustration palette-shift — with placeholders so generations drop in.
-3. **Deploy `proxy/`** (Coolify VPS behind Cloudflare planned) and point the client at it; contract already matches the stub. Needs Maxim's VPS + API key.
+1. **Voice pass over all `// DRAFT` lines** (~115 across script.ts, scene files incl. 6 entry variants, vite stub, proxy prompt, 4 `returnVisit` lines) — Maxim's job by design. The finale line's wording is FINAL ("Thank you for helping me remember." — recorded audio matches it); don't reword it.
+2. **Hero assets (scope §7c): Maxim's generations** from the briefs in `notes/asset-briefs.md` + the character sheet in `notes/`. Drop-in: overwrite `src/assets/title.png` / `avatar.png` / `ending.png`, tune per-asset thresholds in `src/game/heroAssets.ts` (sweep: `node tools/probe-threshold.mjs`), run `node tools/verify-assets.mjs`. Missing file = procedural placeholder, zero regression.
+3. **Deploy `proxy/`** (Coolify VPS behind Cloudflare planned) and point the client at it; CORS/domain/rate-limit are done — needs only Maxim's VPS + `ANTHROPIC_API_KEY` (optionally `GAME_ORIGINS`).
 4. **Real-device tests:** iOS Safari audio unlock + Threads in-app browser are implemented-to-spec but unverified on hardware.
-5. **Phone-in-hand playtest** for lie subtlety and mutation timing — the two things only playtesting tunes (scope §9). Maxim playtests between sessions; expect notes.
-6. **Trust-flavored scene-entry line variants** (2–3) unwritten; only post-quiz lines vary by band.
-7. **Launch post** (Day 7): title card + 15s capture of the ink dissolve.
+5. **Phone-in-hand playtest** for lie subtlety and mutation timing — the two things only playtesting tunes (scope §9). First playtest (July 4) came back clean; more expected as assets land.
+6. **Launch post** (Day 7): title card + 15s capture of the ink dissolve.
 
 STATUS.md's "known rough edges" list has the minor fix-forward items (P3–P5 passes addressed text pacing, desktop, legibility, onboarding — see git log).
