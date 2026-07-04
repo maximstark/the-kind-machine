@@ -1,5 +1,14 @@
 # STATUS
 
+## P7 pass, second session (July 4 PM) — the real art landed
+- **Maxim's generations are in the game.** All three §7c slots now carry his art (via notes/ drop → `src/assets/`): title card (masonry arch, beam, robed figure), ARCHIVIST avatar (classical head, hairline-seam wrongness — threshold tuned to 0.55 from the probe sweep), ending illustration (door + light path, clean source). The keep-regen with the baked-in cross was set aside — the engine draws the crossing-out itself over the single source (palette-shift architecture); the epitaph cross is now dry-brushed (3 fixed-offset passes) to sit in the art's stroke language.
+- **Ship-encode**: `node tools/shrink-asset.mjs` (1280px cap + posterize-16 + re-encode) took the three PNGs 3.25MB → 353KB with no visible ingestion delta (lit-fraction parity 0.149 vs 0.150). Run it on any future generation before committing.
+- **OG/social card regenerated from the real title art** (the P6 review note said to swap when it existed) — `public/og.png` is now the intended launch image.
+- **Card isolation renders + prompts**: `tools/render-cards.mjs` → `notes/card-*.png` (pipeline-faithful, no type) as editing bases; ChatGPT prompt kit in `notes/imagegen-prompts.md` (attach reference render + style block; bans midtones/fake grain). This round trip is what produced the successful generations.
+- **Tower glyph sculptures scaled 1.5×** for legibility (Maxim's call over a drawn set); chapel row inherits proportionally; tower probe + playthroughs pass.
+- Verified post-ingestion: verify-assets, render-cards parity, perf (30/41/42/42), both playthroughs.
+- Note for future sessions: never write to `src/` while a headless playthrough is running — Vite HMR reloads the page mid-run and the run fails confusingly (learned the hard way with the asset shrink).
+
 ## P7 pass (July 4) — hero-asset ingestion + character sheet
 - **Maxim's playtest came back clean** (his words: the game is excellent); no fix-forward notes this round.
 - **Character sprite sheet for his AI passes**: `node tools/render-character.mjs` → `notes/character-sheet.png` (dev-only /sheet.html drives the real Character class — turnaround, orthos, close-ups, plus an in-game-scale dithered pair as ground truth). Delivered July 4.

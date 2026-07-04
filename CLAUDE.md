@@ -18,6 +18,8 @@ node tools/render-character.mjs          # wanderer sprite sheet -> notes/charac
 node tools/render-cards.mjs              # title + both ending treatments, pipeline-faithful, no type -> notes/card-*.png
 node tools/probe-threshold.mjs <img>     # 11-step 1-bit threshold sweep -> shots/ (tune heroAssets.ts manifest)
 node tools/make-placeholders.mjs         # regenerate src/assets/ placeholder PNGs (standalone)
+node tools/shrink-asset.mjs <png>        # ship-encode a hero asset in place (1280 cap + posterize) — run before committing
+
 node tools/render-og.mjs tools/og-card.html public/og.png   # regenerate the OG/social card
 node tools/process-voice.mjs "notes/Final dialogue.m4a" [outBase] [--preset dark]  # spoken-line chain
 node tools/resample.mjs in.wav out.wav 16000   # lean ship-encode for audio assets
@@ -58,7 +60,7 @@ All verification is headless (Playwright, `channel: 'chrome'` — nothing opens 
 Done in P6–P7 (see STATUS.md): OG card + link meta, machine voice (babble+hum, A/B'd and locked), spoken finale line wired (both renders), cross-run memory, §7c ingestion pipeline (placeholders live in all three slots), character sprite sheet delivered, entry variants written, proxy hardened.
 
 1. **Voice pass over all `// DRAFT` lines** (~115 across script.ts, scene files incl. 6 entry variants, vite stub, proxy prompt, 4 `returnVisit` lines) — Maxim's job by design. The finale line's wording is FINAL ("Thank you for helping me remember." — recorded audio matches it); don't reword it.
-2. **Hero assets (scope §7c): Maxim's generations** from the briefs in `notes/asset-briefs.md` + the character sheet in `notes/`. Drop-in: overwrite `src/assets/title.png` / `avatar.png` / `ending.png`, tune per-asset thresholds in `src/game/heroAssets.ts` (sweep: `node tools/probe-threshold.mjs`), run `node tools/verify-assets.mjs`. Missing file = procedural placeholder, zero regression.
+2. **Hero assets (scope §7c): DONE July 4** — Maxim's generations live in all three slots, thresholds tuned, ship-encoded. To iterate on any of them: overwrite `src/assets/title.png` / `avatar.png` / `ending.png`, sweep with `probe-threshold.mjs` → tune the `heroAssets.ts` manifest, `shrink-asset.mjs`, then `verify-assets.mjs` + `render-cards.mjs` to compare. The ending source must stay clean — the engine draws the keep-cross/scratches itself. Never write `src/` files while a headless run is in flight (HMR reload kills it).
 3. **Deploy `proxy/`** (Coolify VPS behind Cloudflare planned) and point the client at it; CORS/domain/rate-limit are done — needs only Maxim's VPS + `ANTHROPIC_API_KEY` (optionally `GAME_ORIGINS`).
 4. **Real-device tests:** iOS Safari audio unlock + Threads in-app browser are implemented-to-spec but unverified on hardware.
 5. **Phone-in-hand playtest** for lie subtlety and mutation timing — the two things only playtesting tunes (scope §9). First playtest (July 4) came back clean; more expected as assets land.
