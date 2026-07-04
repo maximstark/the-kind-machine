@@ -15,6 +15,7 @@ node tools/verify-perf.mjs               # draw calls per scene, budget < 50 (to
 node tools/verify-return.mjs             # cross-run memory (archive) wiring
 node tools/verify-assets.mjs             # §7c ingestion: slots load, avatar quad mounted, title card draws
 node tools/render-character.mjs          # wanderer sprite sheet -> notes/character-sheet.png (for Maxim's AI passes)
+node tools/render-cards.mjs              # title + both ending treatments, pipeline-faithful, no type -> notes/card-*.png
 node tools/probe-threshold.mjs <img>     # 11-step 1-bit threshold sweep -> shots/ (tune heroAssets.ts manifest)
 node tools/make-placeholders.mjs         # regenerate src/assets/ placeholder PNGs (standalone)
 node tools/render-og.mjs tools/og-card.html public/og.png   # regenerate the OG/social card
