@@ -6,7 +6,7 @@ An 8–12 minute isometric psychological horror vignette for the phone in your h
 
 **▶ [Play the demo](https://maximstark.github.io/the-kind-machine/)** — best in portrait, sound on, one sitting.
 
-> Work in progress: all dialogue is draft, all art is placeholder. The bones are load-bearing; the skin comes later.
+> In active development: dialogue and art are still evolving toward their final form. The bones are load-bearing; the skin comes later.
 
 ## How to play
 
