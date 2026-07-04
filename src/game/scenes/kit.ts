@@ -497,7 +497,10 @@ export function chalkMark(): THREE.Group {
 
 export type GlyphKind = 'circle' | 'cross' | 'wave' | 'eye'
 
-// Glyphs are small sculptures on plinths — readable silhouettes at 360px.
+// Glyphs are sculptures on plinths — readable silhouettes at 360px.
+// Sized up 1.5x (July 4, Maxim's call): keeping them sculptural beat
+// generating a drawn glyph set; legibility comes from scale instead.
+const GLYPH_SCALE = 1.5
 export function glyphStone(kind: GlyphKind): THREE.Group {
   const g = new THREE.Group()
   const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.85, 0.6), MAT.darkStone)
@@ -527,7 +530,9 @@ export function glyphStone(kind: GlyphKind): THREE.Group {
     pupil.position.z = 0.16
     top.add(pupil)
   }
-  top.position.y = 1.12
+  top.scale.setScalar(GLYPH_SCALE)
+  // Mounted higher so the scaled sculpture clears the plinth top.
+  top.position.y = 1.35
   g.add(top)
   g.name = `glyph-${kind}`
   return g
