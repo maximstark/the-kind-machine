@@ -5,7 +5,7 @@ import { trust } from './game/trust'
 import { archive } from './game/archive'
 import { quizController } from './game/quiz'
 import { voice } from './game/machine'
-import './audio/sound'
+import { sound } from './audio/sound'
 import { atmosphere } from './core/atmosphere'
 import { buildField } from './game/scenes/field'
 import { buildChapel } from './game/scenes/chapel'
@@ -51,6 +51,7 @@ document.addEventListener('visibilitychange', () => {
   bus,
   trust,
   archive,
+  sound,
   quiz: quizController,
   voice,
   THREE,

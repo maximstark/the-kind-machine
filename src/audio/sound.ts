@@ -31,6 +31,10 @@ class Sound {
   private started = false
   private voxStep = 0
   private humGain: GainNode | null = null
+  // The one spoken line (scope §6 amendment): prefetched when the hall is
+  // entered, played at the moment of thanks. One render per ending.
+  private spoken = new Map<string, AudioBuffer>()
+  private spokenActive = false
   private humF1: BiquadFilterNode | null = null
   private humF2: BiquadFilterNode | null = null
   private humActive = false
@@ -152,6 +156,45 @@ class Sound {
     })
   }
 
+  get spokenCount() {
+    return this.spoken.size
+  }
+
+  // Fetch + decode both renders. Relative paths so the Pages subpath works.
+  // Any failure degrades silently: the babble speaks the line instead.
+  async prefetchSpoken() {
+    if (!this.ctx || this.spoken.size) return
+    for (const kind of ['keep', 'accept'] as const) {
+      try {
+        const res = await fetch(`voice/end-${kind}.wav`)
+        const buf = await this.ctx.decodeAudioData(await res.arrayBuffer())
+        this.spoken.set(kind, buf)
+      } catch {
+        // Missing or undecodable: nothing to do.
+      }
+    }
+  }
+
+  // Returns false when the asset isn't available (caller needs no fallback
+  // logic — tick() only mutes while a spoken line is actually playing).
+  playSpoken(kind: 'keep' | 'accept'): boolean {
+    const ctx = this.ctx
+    const buf = this.spoken.get(kind)
+    if (!ctx || !this.master || !buf) return false
+    this.spokenActive = true
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    const g = ctx.createGain()
+    g.gain.value = 0.9
+    src.connect(g)
+    g.connect(this.master)
+    src.onended = () => {
+      this.spokenActive = false
+    }
+    src.start()
+    return true
+  }
+
   // The machine's voice, per revealed character: wordless formant babble.
   // Vowels in the actual text pick the mouth shape; consonants collapse to
   // a closed dark blip; punctuation gets a longer falling "mm". Monotone
@@ -159,6 +202,8 @@ class Sound {
   tick(ch?: string) {
     const ctx = this.ctx
     if (!ctx || !this.master) return
+    // While the spoken line plays, the babble yields. Same throat.
+    if (this.spokenActive) return
     const punct = !!ch && PUNCT.test(ch)
     if (!punct && this.voxStep++ % 2 !== 0) return // syllable rate, not char rate
     const vowel = ch && FORMANTS[ch.toLowerCase()]
@@ -290,6 +335,9 @@ bus.on('game:begin', () => sound.unlock())
 bus.on('machine:tick', (ch) => sound.tick(ch as string | undefined))
 bus.on('machine:line-start', () => sound.voiceLineStart())
 bus.on('machine:reveal-done', () => sound.voiceLineEnd())
+bus.on('scene:entered', (id) => {
+  if (id === 'door') void sound.prefetchSpoken()
+})
 bus.on('char:step', () => sound.thud())
 bus.on('quiz:card-picked', () => sound.chime(720, 0.35, 0.08))
 bus.on('dissolve:out', () => sound.scratch(1.5))

@@ -529,6 +529,9 @@ export class Game {
     archive.record(kind)
     atmosphere.baseline = kind === 'accept' ? 0 : 0.3
     if (kind === 'accept') atmosphere.becalm()
+    // The archive plays back its recording of the thanks — the same take
+    // every run, every ending. The text may say more than the voice does.
+    sound.playSpoken(kind)
     // One line before the ink runs out. Never confirmed, never explained.
     voice.say(returning ? SCRIPT.returnVisit.thanksAgain : 'Thank you for helping me remember.', {
       // DRAFT

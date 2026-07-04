@@ -209,6 +209,15 @@ await advanceScene()
 console.log('DOOR entered')
 await page.screenshot({ path: `shots/pt-${MODE}-door.png` })
 
+// The spoken line prefetches on hall entry; both renders should decode.
+for (let i = 0; i < 30; i++) {
+  await page.waitForTimeout(500)
+  if ((await page.evaluate(() => window.__tkm.sound.spokenCount)) === 2) break
+}
+const spokenCount = await page.evaluate(() => window.__tkm.sound.spokenCount)
+if (spokenCount !== 2) errors.push(`spoken line prefetch: expected 2 buffers, got ${spokenCount}`)
+else console.log('spoken line prefetched (2 renders)')
+
 // The hall: walk up the diagonal toward the beam, then meet the mark.
 await waymark()
 await page.waitForTimeout(26000)
