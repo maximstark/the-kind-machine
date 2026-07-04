@@ -2,7 +2,7 @@
 
 An 8–12 minute mobile-first isometric psychological-horror vignette (Three.js, browser, distributed via Threads). The machine ARCHIVIST rebuilds the last day of the world and gently disputes your memory of it. Solo dev: Maxim Stark; Claude builds autonomously against the scope doc. Live: https://maximstark.github.io/the-kind-machine/
 
-**The contract is `scope-doc-the-kind-machine.md`** — code comments reference its § numbers. `STATUS.md` = build state (update it each session). `DECISIONS.md` = one line per design call: decision + why + what to review. `notes/` is gitignored and never ships.
+**The contract is `scope-doc-the-kind-machine.md`** — code comments reference its § numbers. `STATUS.md` = build state (update it each session). `DECISIONS.md` = one line per design call: decision + why + what to review — insert entries with Edit under the current pass's section at the top (`cat >>` lands them at the file bottom, wrong section). `notes/` is gitignored, never ships, and doubles as the phone→disk drop channel: the project folder is OneDrive-synced, so Maxim saves recordings/images there from his phone and they appear on disk.
 
 ## Commands
 
@@ -12,7 +12,10 @@ npm run build                            # tsc --noEmit + vite build (~200KB gz,
 npm run shot                             # headless screenshot of dev server -> shots/ (TKM_URL env to override)
 node tools/playthrough.mjs keep|accept   # automated full run to either ending — must pass before commit
 node tools/verify-perf.mjs               # draw calls per scene, budget < 50 (tower/chapel near budget)
+node tools/verify-return.mjs             # cross-run memory (archive) wiring
 node tools/render-og.mjs tools/og-card.html public/og.png   # regenerate the OG/social card
+node tools/process-voice.mjs "notes/Final dialogue.m4a" [outBase] [--preset dark]  # spoken-line chain
+node tools/resample.mjs in.wav out.wav 16000   # lean ship-encode for audio assets
 ```
 
 All verification is headless (Playwright, `channel: 'chrome'` — nothing opens on the desktop). Other `tools/verify-*.mjs` / `probe-*.mjs` scripts exercise specific features; run the relevant one after touching that feature. Verify both playthroughs + perf before committing. Commit per milestone; pushing `main` triggers the Pages deploy (`.github/workflows/deploy.yml` builds and force-pushes `dist/` to the `gh-pages` branch).
@@ -33,7 +36,8 @@ All verification is headless (Playwright, `channel: 'chrome'` — nothing opens 
 - **State machine** lives in `src/game/game.ts` (~900 lines, the hub): scene flow title → field → chapel → tower → door → choice → outro. Scenes in `src/game/scenes/` (+ `kit.ts` shared dressing, all placeholder graybox pending §7c hero assets).
 - **Camera** (`src/core/isoCamera.ts`): ortho at 45°/~30°; north (−z) projects up-RIGHT on screen; scenes are composed along the screen diagonal with per-scene `camBias`. The hall's pullback is dynamic: view width 14 → 31 via `viewWidthAt` as you walk.
 - **Trust** (`src/game/trust.ts`): hidden meter, adjusts on answers/hint-follows; selects ending flavor + post-quiz line bands. No visible UI, ever.
-- **Audio** (`src/audio/sound.ts`): all synthesized (detuned-saw drone that darkens with the weather, voice tick grains, chimes, ink-scratch). Unlock on title tap; `visibilitychange` pause.
+- **Audio** (`src/audio/sound.ts`): synthesized except one asset. The machine's voice = wordless formant babble (the text's vowels pick the mouth shape, monotone 110Hz) over a morphing vowel hum that breathes only while text reveals. Drone darkens with the weather; chimes; ink-scratch. Unlock on title tap; `visibilitychange` pause. **The one exception (scope §6 amendment):** the finale line is Maxim's processed take — `public/voice/end-keep.wav` (default render) / `end-accept.wav` (dark render), prefetched at hall entry, babble mutes while it plays, missing asset degrades to babble. Regenerate via `process-voice.mjs` presets from the raw take in `notes/`.
+- **Cross-run memory** (`src/game/archive.ts`): the machine remembers the last completed run (localStorage, recorded at the moment of choice). Three return-visit touches only: one cold-open line, one ending-keyed field beat, and the finale text gains "Again." (the audio stays the identical take — deliberately: the thanks is a recording). Storage failure = graceful amnesia. Reset for testing: `localStorage.clear()`.
 - **Character** (`src/game/character.ts`): procedurally animated primitives (springs, lag, attention glances that double as diegetic guidance); tuning constants at the top of the file.
 - Desktop gets a letterboxed portrait frame + WASD/space (P3); the game is composed for a phone in portrait.
 
@@ -44,13 +48,15 @@ All verification is headless (Playwright, `channel: 'chrome'` — nothing opens 
 - The game must remain 100% complete with scripted lines alone — AI flourishes flavor, never carry (cut-safety guarantee, scope §6).
 - Pre-committed cut list, in order (scope §8): flourishes → scripted-only; Tower puzzle → single door; ending illustration → palette-shifted title card; audio → drone only.
 
-## Open scope (as of July 3, 2026 — check STATUS.md/git log for drift)
+## Open scope (as of July 4, 2026 — check STATUS.md/git log for drift)
 
-1. **Voice pass over all `// DRAFT` lines** (~110 across script.ts, scene files, vite stub, proxy prompt) — Maxim's job by design.
-2. **Hero ink assets (scope §7c), all untouched:** title card (doubles as Threads launch image, Maxim's hand), ARCHIVIST avatar through the smear (replaces placeholder bust), ending illustration, stretch glyph set. `TODO(maxim)` marks the seams.
-3. **Deploy `proxy/`** (Coolify VPS behind Cloudflare planned) and point the client at it; contract already matches the stub.
+Done in P6 (see STATUS.md): OG card + link meta, machine voice (babble+hum, A/B'd and locked), spoken finale line wired (both renders), cross-run memory, CLAUDE.md itself.
+
+1. **Voice pass over all `// DRAFT` lines** (~110 across script.ts, scene files, vite stub, proxy prompt, + 4 `returnVisit` lines) — Maxim's job by design. The finale line's wording is FINAL ("Thank you for helping me remember." — recorded audio matches it); don't reword it.
+2. **Hero assets (scope §7c) via Maxim's AI generations** (pivot from hand ink, logged in DECISIONS): briefs in `notes/asset-briefs.md`. **Next build on my side: the ingestion pipeline** — loader, tunable threshold-to-1-bit, ARCHIVIST-avatar live-smear slot, title card, ending-illustration palette-shift — with placeholders so generations drop in.
+3. **Deploy `proxy/`** (Coolify VPS behind Cloudflare planned) and point the client at it; contract already matches the stub. Needs Maxim's VPS + API key.
 4. **Real-device tests:** iOS Safari audio unlock + Threads in-app browser are implemented-to-spec but unverified on hardware.
-5. **Phone-in-hand playtest** for lie subtlety and mutation timing — the two things only playtesting tunes (scope §9).
+5. **Phone-in-hand playtest** for lie subtlety and mutation timing — the two things only playtesting tunes (scope §9). Maxim playtests between sessions; expect notes.
 6. **Trust-flavored scene-entry line variants** (2–3) unwritten; only post-quiz lines vary by band.
 7. **Launch post** (Day 7): title card + 15s capture of the ink dissolve.
 
