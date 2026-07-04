@@ -2,22 +2,94 @@
 // machine's one spoken line (the scope-amended finale VO).
 // Runs the whole chain in Web Audio inside headless Chrome so the processing
 // vocabulary is identical to the game's live synthesis (same primitives,
-// same 110Hz root, same dark-cathedral space).
+// same root pitch, same dark-cathedral space).
 //
-// Usage: node tools/process-voice.mjs "notes/Final dialogue.m4a" [outBase]
-//   Writes <outBase>.wav (processed, 48k/16-bit mono) and <outBase>-verify.png
-//   (waveform before/after). Default outBase: notes/archivist-line-v1
+// Usage: node tools/process-voice.mjs "notes/Final dialogue.m4a" [outBase] [--preset dark]
+//   Writes <outBase>.wav (48k/16-bit mono) and <outBase>-verify.png.
+//   Default outBase: notes/archivist-line-v1
 //
-// Chain: normalize + silence-trim -> granular smear (the corruption idiom)
-//   -> subtle 110Hz ring-mod (machine carrier) -> EQ toward the babble's
-//   formant palette -> gentle bit-quantize -> dark 3.5s cathedral convolver
-//   -> compressor -> normalize to -1.5dBFS.
+// Presets:
+//   default — the approved v1 chain: normalize/trim -> granular smear ->
+//             subtle 110Hz ring-mod -> dark-vowel EQ -> 10-bit quantize mix
+//             -> 3.5s cathedral convolver -> compressor. (Parameter-
+//             deterministic: seeded jitter, same grain schedule every run.
+//             Not bit-exact across runs — Chrome's convolver is threaded —
+//             but renders are audibly identical.)
+//   dark    — the accept-ending variant. The world on screen goes bright and
+//             clean; this voice is what's underneath it: time-stretched 1.18x,
+//             pitched ~3.5 semitones down with an octave-deep shadow layer,
+//             55Hz carrier, heavier crush, 6s darker hall, and a reverse-reverb
+//             pre-echo — the room answers each phrase before it is spoken,
+//             because the archive already contains it. The line disintegrates
+//             as it completes (grain jitter/detune widen with progress).
 import { chromium } from 'playwright'
 import { readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 
-const inPath = resolve(process.argv[2] ?? 'notes/Final dialogue.m4a')
-const outBase = resolve(process.argv[3] ?? 'notes/archivist-line-v1')
+const args = process.argv.slice(2)
+const presetIdx = args.indexOf('--preset')
+const presetName = presetIdx >= 0 ? args[presetIdx + 1] : 'default'
+const positional = args.filter((a, i) => !a.startsWith('--') && (presetIdx < 0 || i !== presetIdx + 1))
+const inPath = resolve(positional[0] ?? 'notes/Final dialogue.m4a')
+const outBase = resolve(positional[1] ?? 'notes/archivist-line-v1')
+
+const PRESETS = {
+  default: {
+    stretch: 1.0,
+    baseDetune: 0,
+    progSpread: 0, // no disintegration
+    jitterBase: 0.024,
+    jitterEnd: 0.024,
+    shadow: null,
+    rmFreq: 110,
+    rmMix: 0.32,
+    dryMix: 0.68,
+    eq: [
+      ['highpass', 130, 0.7],
+      ['peaking', 330, 1.2, 4],
+      ['peaking', 820, 1.4, 3],
+      ['peaking', 2200, 1.6, -5],
+      ['lowpass', 3400, 0.7],
+    ],
+    crushSteps: 512,
+    crushWet: 0.3,
+    ir: { dur: 3.5, pow: 2.8, lp: 0.75 },
+    revWet: 0.28,
+    preDelay: 0.035,
+    preEcho: null,
+    tail: 4.0,
+  },
+  dark: {
+    stretch: 1.18,
+    baseDetune: -350,
+    progSpread: 2.0,
+    jitterBase: 0.024,
+    jitterEnd: 0.07,
+    shadow: { detune: -1550, gain: 0.35 },
+    rmFreq: 55,
+    rmMix: 0.42,
+    dryMix: 0.58,
+    eq: [
+      ['highpass', 90, 0.7],
+      ['peaking', 165, 1.1, 4],
+      ['peaking', 820, 1.4, 2],
+      ['peaking', 2200, 1.6, -6],
+      ['lowpass', 2400, 0.7],
+    ],
+    crushSteps: 256,
+    crushWet: 0.35,
+    ir: { dur: 6.0, pow: 2.4, lp: 0.85 },
+    revWet: 0.42,
+    preDelay: 0.06,
+    preEcho: { irDur: 2.2, pow: 2.2, lp: 0.8, wet: 0.16 },
+    tail: 6.5,
+  },
+}
+const preset = PRESETS[presetName]
+if (!preset) {
+  console.error('unknown preset: ' + presetName + ' (have: ' + Object.keys(PRESETS).join(', ') + ')')
+  process.exit(1)
+}
 
 const b64 = readFileSync(inPath).toString('base64')
 
@@ -25,7 +97,7 @@ const browser = await chromium.launch({ channel: 'chrome', headless: true })
 const page = await browser.newPage({ viewport: { width: 1200, height: 640 } })
 page.on('console', (m) => console.log('[page]', m.text()))
 
-const result = await page.evaluate(async (b64) => {
+const result = await page.evaluate(async ({ b64, P }) => {
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
   const SR = 48000
 
@@ -62,88 +134,89 @@ const result = await page.evaluate(async (b64) => {
     if (m > thresh) { end = Math.min(src0.length, i + win + decoded.sampleRate * 0.25); break }
   }
   const dur = (end - start) / decoded.sampleRate
-  const TAIL = 4.0
-  const ctx = new OfflineAudioContext(1, Math.ceil((dur + TAIL) * SR), SR)
+  const outDur = dur * P.stretch + P.tail
+
+  const ctx = new OfflineAudioContext(1, Math.ceil(outDur * SR), SR)
   const buf = ctx.createBuffer(1, end - start, decoded.sampleRate)
   const bd = buf.getChannelData(0)
   for (let i = 0; i < bd.length; i++) bd[i] = src0[start + i] * norm
 
-  // --- granular smear: two staggered layers of 90ms grains, ±12ms jitter,
-  // deterministic detune walk (the corruption layer's idiom, in time) ---
+  // --- granular smear: two staggered layers of 90ms grains; jitter and
+  // detune spread widen with progress under progSpread (disintegration) ---
   const grainBus = ctx.createGain()
   grainBus.gain.value = 1.0
   const GRAIN = 0.09
   const HOP = 0.045
   const DETUNES = [-12, 8, -5, 14]
   let gi = 0
+  const spawnGrain = (t, layerOff, detuneBase, level) => {
+    const prog = t / dur
+    const jit = P.jitterBase + (P.jitterEnd - P.jitterBase) * prog
+    const when = t * P.stretch + layerOff + (rand() - 0.5) * jit
+    if (when < 0) return
+    const g = ctx.createBufferSource()
+    g.buffer = buf
+    g.detune.value = detuneBase + DETUNES[gi++ % DETUNES.length] * (1 + P.progSpread * prog)
+    const env = ctx.createGain()
+    env.gain.setValueAtTime(0.0001, when)
+    env.gain.linearRampToValueAtTime(level, when + GRAIN * 0.3)
+    env.gain.linearRampToValueAtTime(0.0001, when + GRAIN)
+    g.connect(env)
+    env.connect(grainBus)
+    g.start(when, Math.min(t, dur - GRAIN), GRAIN)
+  }
   for (const layerOff of [0, HOP / 2]) {
-    for (let t = 0; t < dur - 0.01; t += HOP) {
-      const when = t + layerOff + (rand() - 0.5) * 0.024
-      if (when < 0) continue
-      const g = ctx.createBufferSource()
-      g.buffer = buf
-      g.detune.value = DETUNES[gi++ % DETUNES.length]
-      const env = ctx.createGain()
-      env.gain.setValueAtTime(0.0001, when)
-      env.gain.linearRampToValueAtTime(0.5, when + GRAIN * 0.3)
-      env.gain.linearRampToValueAtTime(0.0001, when + GRAIN)
-      g.connect(env)
-      env.connect(grainBus)
-      g.start(when, Math.min(t, dur - GRAIN), GRAIN)
-    }
+    for (let t = 0; t < dur - 0.01; t += HOP) spawnGrain(t, layerOff, P.baseDetune, 0.5)
+  }
+  if (P.shadow) {
+    for (let t = 0; t < dur - 0.01; t += HOP) spawnGrain(t, HOP / 4, P.shadow.detune, 0.5 * P.shadow.gain)
   }
 
-  // --- subtle ring-mod at the root: the machine carrier under the words ---
+  // --- ring-mod at the root: the machine carrier under the words ---
   const eqIn = ctx.createGain()
   const dry = ctx.createGain()
-  dry.gain.value = 0.68
+  dry.gain.value = P.dryMix
   grainBus.connect(dry)
   dry.connect(eqIn)
   const rm = ctx.createGain()
   rm.gain.value = 0
   const carrier = ctx.createOscillator()
   carrier.type = 'sine'
-  carrier.frequency.value = 110
+  carrier.frequency.value = P.rmFreq
   carrier.connect(rm.gain)
   carrier.start()
   const rmMix = ctx.createGain()
-  rmMix.gain.value = 0.32
+  rmMix.gain.value = P.rmMix
   grainBus.connect(rm)
   rm.connect(rmMix)
   rmMix.connect(eqIn)
 
-  // --- EQ toward the babble's dark vowels, tame modern-mic sheen ---
+  // --- EQ ---
   const eq = []
-  const mk = (type, freq, q, gain) => {
+  for (const [type, freq, q, gain] of P.eq) {
     const f = ctx.createBiquadFilter()
     f.type = type
     f.frequency.value = freq
     f.Q.value = q
     if (gain !== undefined) f.gain.value = gain
+    if (eq.length) eq[eq.length - 1].connect(f)
     eq.push(f)
-    return f
   }
-  mk('highpass', 130, 0.7)
-  mk('peaking', 330, 1.2, 4)   // u
-  mk('peaking', 820, 1.4, 3)   // o
-  mk('peaking', 2200, 1.6, -5) // sibilance shelf-down
-  mk('lowpass', 3400, 0.7)
-  for (let i = 1; i < eq.length; i++) eq[i - 1].connect(eq[i])
   eqIn.connect(eq[0])
 
-  // --- gentle bit quantize (10-bit), mixed under the clean path ---
+  // --- bit quantize, mixed under the clean path ---
   const crushIn = eq[eq.length - 1]
   const shaper = ctx.createWaveShaper()
   const curve = new Float32Array(4096)
   for (let i = 0; i < curve.length; i++) {
     const x = (i / (curve.length - 1)) * 2 - 1
-    curve[i] = Math.round(x * 512) / 512
+    curve[i] = Math.round(x * P.crushSteps) / P.crushSteps
   }
   shaper.curve = curve
   const crushWet = ctx.createGain()
-  crushWet.gain.value = 0.3
+  crushWet.gain.value = P.crushWet
   const crushDry = ctx.createGain()
-  crushDry.gain.value = 0.7
+  crushDry.gain.value = 1 - P.crushWet
   const postCrush = ctx.createGain()
   crushIn.connect(shaper)
   shaper.connect(crushWet)
@@ -151,23 +224,25 @@ const result = await page.evaluate(async (b64) => {
   crushIn.connect(crushDry)
   crushDry.connect(postCrush)
 
-  // --- dark cathedral: 3.5s decaying-noise impulse, one-pole darkened ---
-  const IR_DUR = 3.5
-  const ir = ctx.createBuffer(1, Math.floor(SR * IR_DUR), SR)
-  const ird = ir.getChannelData(0)
-  let lp = 0
-  for (let i = 0; i < ird.length; i++) {
-    const t = i / ird.length
-    const s = (rand() * 2 - 1) * Math.pow(1 - t, 2.8)
-    lp = lp * 0.75 + s * 0.25
-    ird[i] = lp
+  // --- cathedral: decaying-noise impulse, one-pole darkened ---
+  const mkImpulse = (irDur, pow, lpA) => {
+    const ir = ctx.createBuffer(1, Math.floor(SR * irDur), SR)
+    const ird = ir.getChannelData(0)
+    let lp = 0
+    for (let i = 0; i < ird.length; i++) {
+      const t = i / ird.length
+      const s = (rand() * 2 - 1) * Math.pow(1 - t, pow)
+      lp = lp * lpA + s * (1 - lpA)
+      ird[i] = lp
+    }
+    return ir
   }
   const conv = ctx.createConvolver()
-  conv.buffer = ir
-  const preDelay = ctx.createDelay(0.1)
-  preDelay.delayTime.value = 0.035
+  conv.buffer = mkImpulse(P.ir.dur, P.ir.pow, P.ir.lp)
+  const preDelay = ctx.createDelay(0.2)
+  preDelay.delayTime.value = P.preDelay
   const wet = ctx.createGain()
-  wet.gain.value = 0.28
+  wet.gain.value = P.revWet
   const dryOut = ctx.createGain()
   dryOut.gain.value = 1.0
   postCrush.connect(dryOut)
@@ -187,6 +262,25 @@ const result = await page.evaluate(async (b64) => {
 
   const rendered = await ctx.startRendering()
   const out = rendered.getChannelData(0)
+
+  // --- reverse-reverb pre-echo: the room answers before the words arrive ---
+  if (P.preEcho) {
+    const revBuf = new Float32Array(out.length)
+    for (let i = 0; i < out.length; i++) revBuf[i] = out[out.length - 1 - i]
+    const pctx = new OfflineAudioContext(1, out.length, SR)
+    const pb = pctx.createBuffer(1, out.length, SR)
+    pb.getChannelData(0).set(revBuf)
+    const psrc = pctx.createBufferSource()
+    psrc.buffer = pb
+    const pconv = pctx.createConvolver()
+    pconv.buffer = mkImpulse(P.preEcho.irDur, P.preEcho.pow, P.preEcho.lp)
+    psrc.connect(pconv)
+    pconv.connect(pctx.destination)
+    psrc.start()
+    const prendered = await pctx.startRendering()
+    const pout = prendered.getChannelData(0)
+    for (let i = 0; i < out.length; i++) out[i] += pout[out.length - 1 - i] * P.preEcho.wet
+  }
 
   // --- normalize to -1.5dBFS, stats ---
   let opeak = 0
@@ -265,10 +359,10 @@ const result = await page.evaluate(async (b64) => {
       rms: +rms.toFixed(4),
     },
   }
-}, b64)
+}, { b64, P: preset })
 
 await browser.close()
 writeFileSync(outBase + '.wav', Buffer.from(result.wav, 'base64'))
 writeFileSync(outBase + '-verify.png', Buffer.from(result.png, 'base64'))
-console.log('stats', JSON.stringify(result.stats))
+console.log('preset', presetName, 'stats', JSON.stringify(result.stats))
 console.log('OK ' + outBase + '.wav')
