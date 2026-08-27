@@ -55,15 +55,14 @@ All verification is headless (Playwright, `channel: 'chrome'` — nothing opens 
 - The game must remain 100% complete with scripted lines alone — AI flourishes flavor, never carry (cut-safety guarantee, scope §6).
 - Pre-committed cut list, in order (scope §8): flourishes → scripted-only; Tower puzzle → single door; ending illustration → palette-shifted title card; audio → drone only.
 
-## Open scope (as of July 4, 2026 — check STATUS.md/git log for drift)
+## Open scope
 
-Done in P6–P7 (see STATUS.md): OG card + link meta, machine voice (babble+hum, A/B'd and locked), spoken finale line wired (both renders), cross-run memory, §7c ingestion pipeline (placeholders live in all three slots), character sprite sheet delivered, entry variants written, proxy hardened.
+Lives in `STATUS.md` (top: open scope as of July 4, then per-pass state; its
+"known rough edges" list has the fix-forward items). Two things there are
+rules, not state: the voice pass over `// DRAFT` lines is Maxim's job by
+design, and the finale line wording is FINAL ("Thank you for helping me
+remember." — the recorded audio matches it); never reword it. Never write
+`src/` files while a headless run is in flight — the HMR reload kills it.
 
-1. **Voice pass over all `// DRAFT` lines** (~115 across script.ts, scene files incl. 6 entry variants, vite stub, proxy prompt, 4 `returnVisit` lines) — Maxim's job by design. The finale line's wording is FINAL ("Thank you for helping me remember." — recorded audio matches it); don't reword it.
-2. **Hero assets (scope §7c): DONE July 4** — Maxim's generations live in all three slots, thresholds tuned, ship-encoded. To iterate on any of them: overwrite `src/assets/title.png` / `avatar.png` / `ending.png`, sweep with `probe-threshold.mjs` → tune the `heroAssets.ts` manifest, `shrink-asset.mjs`, then `verify-assets.mjs` + `render-cards.mjs` to compare. The ending source must stay clean — the engine draws the keep-cross/scratches itself. Never write `src/` files while a headless run is in flight (HMR reload kills it).
-3. **Deploy `proxy/`** (Coolify VPS behind Cloudflare planned) and point the client at it; CORS/domain/rate-limit are done — needs only Maxim's VPS + `ANTHROPIC_API_KEY` (optionally `GAME_ORIGINS`).
-4. **Real-device tests:** iOS Safari audio unlock + Threads in-app browser are implemented-to-spec but unverified on hardware.
-5. **Phone-in-hand playtest** for lie subtlety and mutation timing — the two things only playtesting tunes (scope §9). First playtest (July 4) came back clean; more expected as assets land.
-6. **Launch post** (Day 7): title card + 15s capture of the ink dissolve.
-
-STATUS.md's "known rough edges" list has the minor fix-forward items (P3–P5 passes addressed text pacing, desktop, legibility, onboarding — see git log).
+This file is loaded into every session: rules only, under 100 lines. State
+goes in `STATUS.md`, design calls in `DECISIONS.md`.

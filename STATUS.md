@@ -1,5 +1,19 @@
 # STATUS
 
+## Open scope (as of July 4, 2026 — moved from CLAUDE.md 2026-08-27; check the passes below and git log for drift)
+
+Done in P6–P7 (see STATUS.md): OG card + link meta, machine voice (babble+hum, A/B'd and locked), spoken finale line wired (both renders), cross-run memory, §7c ingestion pipeline (placeholders live in all three slots), character sprite sheet delivered, entry variants written, proxy hardened.
+
+1. **Voice pass over all `// DRAFT` lines** (~115 across script.ts, scene files incl. 6 entry variants, vite stub, proxy prompt, 4 `returnVisit` lines) — Maxim's job by design. The finale line's wording is FINAL ("Thank you for helping me remember." — recorded audio matches it); don't reword it.
+2. **Hero assets (scope §7c): DONE July 4** — Maxim's generations live in all three slots, thresholds tuned, ship-encoded. To iterate on any of them: overwrite `src/assets/title.png` / `avatar.png` / `ending.png`, sweep with `probe-threshold.mjs` → tune the `heroAssets.ts` manifest, `shrink-asset.mjs`, then `verify-assets.mjs` + `render-cards.mjs` to compare. The ending source must stay clean — the engine draws the keep-cross/scratches itself. Never write `src/` files while a headless run is in flight (HMR reload kills it).
+3. **Deploy `proxy/`** (Coolify VPS behind Cloudflare planned) and point the client at it; CORS/domain/rate-limit are done — needs only Maxim's VPS + `ANTHROPIC_API_KEY` (optionally `GAME_ORIGINS`).
+4. **Real-device tests:** iOS Safari audio unlock + Threads in-app browser are implemented-to-spec but unverified on hardware.
+5. **Phone-in-hand playtest** for lie subtlety and mutation timing — the two things only playtesting tunes (scope §9). First playtest (July 4) came back clean; more expected as assets land.
+6. **Launch post** (Day 7): title card + 15s capture of the ink dissolve.
+
+STATUS.md's "known rough edges" list has the minor fix-forward items (P3–P5 passes addressed text pacing, desktop, legibility, onboarding — see git log).
+
+
 ## P7 pass, second session (July 4 PM) — the real art landed
 - **Maxim's generations are in the game.** All three §7c slots now carry his art (via notes/ drop → `src/assets/`): title card (masonry arch, beam, robed figure), ARCHIVIST avatar (classical head, hairline-seam wrongness — threshold tuned to 0.55 from the probe sweep), ending illustration (door + light path, clean source). The keep-regen with the baked-in cross was set aside — the engine draws the crossing-out itself over the single source (palette-shift architecture); the epitaph cross is now dry-brushed (3 fixed-offset passes) to sit in the art's stroke language.
 - **Ship-encode**: `node tools/shrink-asset.mjs` (1280px cap + posterize-16 + re-encode) took the three PNGs 3.25MB → 353KB with no visible ingestion delta (lit-fraction parity 0.149 vs 0.150). Run it on any future generation before committing.
